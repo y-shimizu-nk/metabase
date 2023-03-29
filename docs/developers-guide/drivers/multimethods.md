@@ -13,7 +13,6 @@ Let's first focus on the main driver file for our Fox Pro '98 `src/metabase/driv
 (ns com.mycompany.metabase.driver.foxpro98
   (:require [metabase.driver :as driver]))
 
-;; Can you include a different method here as an example?
 (defmethod driver/display-name :foxpro98 [_]
   "Visual FoxPro '98")
 ```
@@ -30,7 +29,7 @@ Let's walk through each code block.
 
 ### Each Metabase driver lives in its own namespace
 
-In this case, the namespace is`com.mycompany.metabase.driver.foxpro98`.
+In this case, the namespace is `com.mycompany.metabase.driver.foxpro98`.
 All core Metabase drivers live in `metabase.driver.<name-goes-here>` namespaces. It's probably best to use names that follow the [Java package naming conventions](https://en.wikipedia.org/wiki/Java_package#Package_naming_conventions).
 
 ### Many drivers are further broken out into additional namespaces
