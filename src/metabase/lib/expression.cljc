@@ -208,11 +208,16 @@
 
 (mu/defn expressions :- [:sequential lib.metadata/ColumnMetadata]
   "Get metadata about the expressions in a given stage of a `query`."
-  [query        :- ::lib.schema/query
-   stage-number :- :int]
-  (for [[expression-name expression-definition] (:expressions (lib.util/query-stage query stage-number))]
-    (let [metadata (lib.metadata.calculation/metadata query stage-number expression-definition)]
-      (merge
-       metadata
-       {:field_ref [:expression {:lib/uuid (str (random-uuid)), :base-type (:base_type metadata)} expression-name]
-        :source    :expressions}))))
+  ([query]
+   (expressions query -1))
+
+  ([query        :- ::lib.schema/query
+    stage-number :- :int]
+   (for [[expression-name expression-definition] (:expressions (lib.util/query-stage query stage-number))]
+     (let [metadata (lib.metadata.calculation/metadata query stage-number expression-definition)]
+       (merge
+        metadata
+        {:field_ref    [:expression {:lib/uuid (str (random-uuid)), :base-type (:base_type metadata)} expression-name]
+         :source       :expressions
+         :name         expression-name
+         :display_name expression-name})))))

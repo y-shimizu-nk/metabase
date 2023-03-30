@@ -67,6 +67,7 @@
    table]
   [lib.expression
    expression
+   expressions
    +
    -
    *

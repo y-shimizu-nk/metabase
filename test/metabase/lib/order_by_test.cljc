@@ -381,3 +381,21 @@
                     {:lib/uuid string?}
                     [:field {:lib/uuid string?, :base-type :type/Text} (meta/id :venues :name)]]]
                   (lib/order-bys query'))))))))
+
+(deftest ^:parallel orderable-columns-include-expressions-test
+  (testing "orderable-columns should include expressions"
+    (is (=? [{:name         "expr"
+              :display_name "expr"
+              :field_ref    [:expression {:lib/uuid string?, :base-type :type/DateTimeWithTZ} "expr"]}
+             {:name "ID"}
+             {:name "NAME"}
+             {:name "CATEGORY_ID"}
+             {:name "LATITUDE"}
+             {:name "LONGITUDE"}
+             {:name "PRICE"}
+             {:name "ID"}
+             {:name "NAME"}]
+            (-> (lib/query-for-table-name meta/metadata-provider "VENUES")
+                (lib/expression "expr" (lib/absolute-datetime "2020" :month))
+                (lib/fields [(lib/field "VENUES" "ID")])
+                (lib/orderable-columns))))))
