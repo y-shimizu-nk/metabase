@@ -384,10 +384,11 @@
 
 (deftest ^:parallel orderable-columns-include-expressions-test
   (testing "orderable-columns should include expressions"
-    (is (=? [{:name         "expr"
+    (is (=? [{:lib/type     :metadata/field
+              :name         "expr"
               :display_name "expr"
               :field_ref    [:expression {:lib/uuid string?, :base-type :type/DateTimeWithTZ} "expr"]
-              :source        :expressions}
+              :source       :expressions}
              {:name "ID"}
              {:name "NAME"}
              {:name "CATEGORY_ID"}
@@ -400,3 +401,15 @@
                 (lib/expression "expr" (lib/absolute-datetime "2020" :month))
                 (lib/fields [(lib/field "VENUES" "ID")])
                 (lib/orderable-columns))))))
+
+(deftest ^:parallel order-by-expression-test
+  (let [query  (-> (lib/query-for-table-name meta/metadata-provider "VENUES")
+                   (lib/expression "expr" (lib/absolute-datetime "2020" :month))
+                   (lib/fields [(lib/field "VENUES" "ID")]))
+        [expr] (lib/orderable-columns query)]
+    (is (=? {:lib/type :metadata/field
+             :name     "expr"}
+            expr))
+    (let [updated-query (lib/order-by query expr)]
+      (is (= :wow
+             updated-query)))))
