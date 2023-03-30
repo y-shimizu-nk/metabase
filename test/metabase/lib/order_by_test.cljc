@@ -386,7 +386,8 @@
   (testing "orderable-columns should include expressions"
     (is (=? [{:name         "expr"
               :display_name "expr"
-              :field_ref    [:expression {:lib/uuid string?, :base-type :type/DateTimeWithTZ} "expr"]}
+              :field_ref    [:expression {:lib/uuid string?, :base-type :type/DateTimeWithTZ} "expr"]
+              :source        :expressions}
              {:name "ID"}
              {:name "NAME"}
              {:name "CATEGORY_ID"}
