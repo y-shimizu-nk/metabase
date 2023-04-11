@@ -1,4 +1,4 @@
-export const GRID_WIDTH = 18;
+export const GRID_WIDTH = 32;
 export const GRID_ASPECT_RATIO = 4 / 3;
 
 const MOBILE_BREAKPOINT = 752;
