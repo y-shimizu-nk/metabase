@@ -1,6 +1,7 @@
 (ns metabase.lib.join
   (:require
    [medley.core :as m]
+   [metabase.lib.common :as lib.common]
    [metabase.lib.dispatch :as lib.dispatch]
    [metabase.lib.hierarchy :as lib.hierarchy]
    [metabase.lib.metadata :as lib.metadata]
@@ -8,7 +9,6 @@
    [metabase.lib.options :as lib.options]
    [metabase.lib.schema :as lib.schema]
    [metabase.lib.schema.common :as lib.schema.common]
-   [metabase.lib.schema.expression :as lib.schema.expression]
    [metabase.lib.schema.join :as lib.schema.join]
    [metabase.lib.util :as lib.util]
    [metabase.shared.util.i18n :as i18n]
@@ -66,7 +66,7 @@
                          :stage-number stage-number})))))
 
 (defmethod lib.metadata.calculation/display-name-method :mbql/join
-  [query _stage-number {[first-stage] :stages, :as _join}]
+  [query _stage-number {[first-stage] :stages, :as _join} _style]
   (if-let [source-table (:source-table first-stage)]
     (if (integer? source-table)
       (:display_name (lib.metadata/table query source-table))
@@ -95,6 +95,15 @@
     (assert (= (current-join-alias col) join-alias))
     col))
 
+(mu/defn ^:private default-join-alias :- ::lib.schema.common/non-blank-string
+  "Generate an alias for a join that doesn't already have one."
+  [query        :- ::lib.schema/query
+   stage-number :- :int
+   join         :- ::lib.schema.join/join]
+  ;; TODO -- this logic is a little goofy, we should update it to match what MLv1 does. See
+  ;; https://github.com/metabase/metabase/issues/30048
+  (lib.metadata.calculation/display-name query stage-number join))
+
 (defmethod lib.metadata.calculation/metadata-method :mbql/join
   [query stage-number {:keys [fields stages], join-alias :alias, :or {fields :none}, :as _join}]
   (when-not (= fields :none)
@@ -106,6 +115,56 @@
       (mapv (fn [field-metadata]
               (column-from-join-fields query stage-number field-metadata join-alias))
             field-metadatas))))
+
+(mu/defn joined-field-desired-alias :- ::lib.schema.common/non-blank-string
+  "Desired alias for a Field that comes from a join, e.g.
+
+    MyJoin__my_field
+
+  You should pass the results thru a unique name function."
+  [join-alias :- ::lib.schema.common/non-blank-string
+   field-name :- ::lib.schema.common/non-blank-string]
+  (lib.util/format "%s__%s" join-alias field-name))
+
+(defmethod lib.metadata.calculation/default-columns-method :mbql/join
+  [query stage-number join unique-name-fn]
+  ;; should be dev-facing-only so don't need to i18n
+  (assert (:alias join) "Join must have an alias to determine column aliases!")
+  (mapv (fn [col]
+          (assoc col
+                 :lib/source-column-alias  (:name col)
+                 :lib/desired-column-alias (unique-name-fn (joined-field-desired-alias (:alias join) (:name col)))))
+        (lib.metadata.calculation/metadata query stage-number join)))
+
+(def ^:private JoinsWithAliases
+  "Schema for a sequence of joins that all have aliases."
+  [:and
+   ::lib.schema.join/joins
+   [:sequential
+    [:map
+     [:alias ::lib.schema.common/non-blank-string]]]])
+
+(mu/defn ^:private  ensure-all-joins-have-aliases :- JoinsWithAliases
+  "Make sure all the joins in a query have an `:alias` if they don't already have one."
+  [query        :- ::lib.schema/query
+   stage-number :- :int
+   joins        :- ::lib.schema.join/joins]
+  (let [unique-name-fn (lib.util/unique-name-generator)]
+    (mapv (fn [join]
+            (cond-> join
+              (not (:alias join)) (assoc :alias (unique-name-fn (default-join-alias query stage-number join)))))
+          joins)))
+
+(mu/defn all-joins-default-columns :- lib.metadata.calculation/ColumnsWithUniqueAliases
+  "Convenience for calling [[lib.metadata.calculation/default-columns]] on all of the joins in a query stage."
+  [query          :- ::lib.schema/query
+   stage-number   :- :int
+   unique-name-fn :- fn?]
+  (into []
+        (mapcat (fn [join]
+                  (lib.metadata.calculation/default-columns query stage-number join unique-name-fn)))
+        (when-let [joins (:joins (lib.util/query-stage query stage-number))]
+          (ensure-all-joins-have-aliases query stage-number joins))))
 
 (defmulti join-clause-method
   "Convert something to a join clause."
@@ -145,41 +204,6 @@
                                            :stage-number stage-number
                                            :f            f})))))
 
-;; TODO this is basically the same as lib.common/->op-args,
-;; but requiring lib.common leads to crircular dependencies:
-;; join -> common -> field -> join.
-(defmulti ^:private ->join-condition
-  {:arglists '([query stage-number x])}
-  (fn [_query _stage-number x]
-    (lib.dispatch/dispatch-value x))
-  :hierarchy lib.hierarchy/hierarchy)
-
-(defmethod ->join-condition :default
-  [_query _stage-number x]
-  x)
-
-(defmethod ->join-condition :lib/external-op
-  [query stage-number {:keys [operator options args] :or {options {}}}]
-  (->join-condition query stage-number
-                    (lib.options/ensure-uuid (into [operator options] args))))
-
-(defmethod ->join-condition :dispatch-type/fn
-  [query stage-number f]
-  (->join-condition query stage-number (f query stage-number)))
-
-(mu/defn join-condition :- [:or
-                            fn?
-                            ::lib.schema.expression/boolean]
-  "Create a MBQL condition expression to include in the `:conditions` in a join map.
-
-  - One arity: return a function that will be resolved later once we have `query` and `stage-number.`
-  - Three arity: return the join condition expression immediately."
-  ([x]
-   (fn [query stage-number]
-     (join-condition query stage-number x)))
-  ([query stage-number x]
-   (->join-condition query stage-number x)))
-
 (defn join-clause
   "Create an MBQL join map from something that can conceptually be joined against. A `Table`? An MBQL or native query? A
   Saved Question? You should be able to join anything, and this should return a sensible MBQL join map."
@@ -196,7 +220,7 @@
 
   ([query stage-number x conditions]
    (cond-> (join-clause query stage-number x)
-     conditions (assoc :conditions (mapv #(join-condition query stage-number %) conditions)))))
+     conditions (assoc :conditions (mapv #(lib.common/->op-arg query stage-number %) conditions)))))
 
 (defmulti with-join-fields-method
   "Impl for [[with-join-fields]]."
@@ -208,7 +232,9 @@
 (defmethod with-join-fields-method :dispatch-type/fn
   [f fields]
   (fn [query stage-number]
-    (with-join-fields-method (f query stage-number) fields)))
+    (with-join-fields-method (f query stage-number) (if (keyword? fields)
+                                                      fields
+                                                      (mapv #(lib.common/->op-arg query stage-number %) fields)))))
 
 (defmethod with-join-fields-method :mbql/join
   [join fields]
@@ -217,7 +243,7 @@
 (mu/defn with-join-fields
   "Update a join (or a function that will return a join) to include `:fields`, either `:all`, `:none`, or a sequence of
   references."
-  [x fields :- ::lib.schema.join/fields]
+  [x fields]
   (with-join-fields-method x fields))
 
 (mu/defn join :- ::lib.schema/query
@@ -240,13 +266,13 @@
      (lib.util/update-query-stage query stage-number update :joins (fn [joins]
                                                                      (conj (vec joins) new-join))))))
 
-(mu/defn joins :- ::lib.schema.join/joins
+(mu/defn joins :- [:maybe ::lib.schema.join/joins]
   "Get all joins in a specific `stage` of a `query`. If `stage` is unspecified, returns joins in the final stage of the
   query."
   ([query]
    (joins query -1))
   ([query        :- ::lib.schema/query
-    stage-number :- ::lib.schema.common/int-greater-than-or-equal-to-zero]
+    stage-number :- :int]
    (not-empty (get (lib.util/query-stage query stage-number) :joins))))
 
 (mu/defn implicit-join-name :- ::lib.schema.common/non-blank-string
