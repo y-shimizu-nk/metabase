@@ -15,6 +15,7 @@ import { PLUGIN_COLLECTIONS } from "metabase/plugins";
 import { getVisualizationRaw } from "metabase/visualizations";
 import * as MetabaseAnalytics from "metabase/lib/analytics";
 import { color } from "metabase/lib/colors";
+import { measureTextLines, renderedTextSize } from "metabase/lib/measure-text";
 
 import {
   GRID_WIDTH,
@@ -34,6 +35,32 @@ import AddSeriesModal from "./AddSeriesModal/AddSeriesModal";
 import DashCard from "./DashCard";
 
 const mapDispatchToProps = { addUndo };
+
+function measureTextHeight(dashcard, rowHeight = 54, colWidth = 50.9444) {
+  const textContent = dashcard?.visualization_settings?.text;
+
+  // const textLines = measureTextLines({
+  //   text: textContent ?? '',
+  //   style: '400 Lato 16px',
+  //   containerWidth: 200, // 🔥 this is going to be infinitely variable 🥴
+  // });
+
+  // // row height = 54 px
+  // // line-height = 25.6352 px
+  // // vert-padding: 21px
+
+  // const textHeight = textLines * 26 + 22;
+
+  const { height: textHeight } = renderedTextSize({
+    text: textContent ?? "",
+    style: "400 Lato 16px",
+    containerWidth: (colWidth * dashcard.size_x) - 51, // 🔥 this is going to be infinitely variable 🥴
+  });
+
+  const gridRows = Math.ceil((textHeight + 22) / rowHeight);
+
+  return Math.max(gridRows, 2);
+}
 
 class DashboardGrid extends Component {
   static contextType = ContentViewportContext;
@@ -158,37 +185,6 @@ class DashboardGrid extends Component {
     );
   }
 
-  getLayoutForDashCard(dashcard) {
-    const { visualization } = getVisualizationRaw([{ card: dashcard.card }]);
-    const initialSize = DEFAULT_CARD_SIZE;
-    const minSize = visualization.minSize || DEFAULT_CARD_SIZE;
-    return {
-      i: String(dashcard.id),
-      x: dashcard.col || 0,
-      y: dashcard.row || 0,
-      w: dashcard.size_x || initialSize.width,
-      h: dashcard.size_y || initialSize.height,
-      dashcard: dashcard,
-      minW: minSize.width,
-      minH: minSize.height,
-    };
-  }
-
-  getLayouts({ dashboard }) {
-    const desktop = dashboard.ordered_cards.map(this.getLayoutForDashCard);
-    const mobile = generateMobileLayout({
-      desktopLayout: desktop,
-      defaultCardHeight: 6,
-      heightByDisplayType: {
-        action: 1,
-        link: 1,
-        text: 2,
-        scalar: 4,
-      },
-    });
-    return { desktop, mobile };
-  }
-
   getRowHeight() {
     const { width } = this.props;
 
@@ -203,6 +199,49 @@ class DashboardGrid extends Component {
     // prevent infinite re-rendering when the scroll bar appears/disappears
     // https://github.com/metabase/metabase/issues/17229
     return hasScroll ? Math.ceil(actualHeight) : Math.floor(actualHeight);
+  }
+
+  getColumnWidth() {
+    const { width } = this.props;
+    return width / GRID_WIDTH;
+  }
+
+  getLayoutForDashCard(dashcard, rowHeight, colWidth) {
+    const { visualization } = getVisualizationRaw([{ card: dashcard.card }]);
+    const initialSize = DEFAULT_CARD_SIZE;
+    const minSize = visualization.minSize || DEFAULT_CARD_SIZE;
+
+    const measuredSize =
+      dashcard.card.display === "text"
+        ? measureTextHeight(dashcard, rowHeight, colWidth)
+        : null;
+
+
+    return {
+      i: String(dashcard.id),
+      x: dashcard.col || 0,
+      y: dashcard.row || 0,
+      w: dashcard.size_x || initialSize.width,
+      h: measuredSize || dashcard.size_y || initialSize.height,
+      dashcard: dashcard,
+      minW: minSize.width,
+      minH: minSize.height,
+    };
+  }
+
+  getLayouts({ dashboard, rowHeight = 54, colWidth = 50 }) {
+    const desktop = dashboard.ordered_cards.map(c => this.getLayoutForDashCard(c, rowHeight, colWidth));
+    const mobile = generateMobileLayout({
+      desktopLayout: desktop,
+      defaultCardHeight: 6,
+      heightByDisplayType: {
+        action: 1,
+        link: 1,
+        text: 2,
+        scalar: 4,
+      },
+    });
+    return { desktop, mobile };
   }
 
   renderAddSeriesModal() {
@@ -352,13 +391,20 @@ class DashboardGrid extends Component {
     const { dashboard, width } = this.props;
     const { layouts } = this.state;
     const rowHeight = this.getRowHeight();
+    const colWidth = this.getColumnWidth();
+
+    const layouts2 = this.props.dashboard && this.getLayouts({
+      dashboard: this.props.dashboard,
+      rowHeight,
+      colWidth,
+    });
     return (
       <GridLayout
         className={cx("DashboardGrid", {
           "Dash--editing": this.isEditingLayout,
           "Dash--dragging": this.state.isDragging,
         })}
-        layouts={layouts}
+        layouts={layouts2}
         breakpoints={GRID_BREAKPOINTS}
         cols={GRID_COLUMNS}
         width={width}
