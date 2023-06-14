@@ -10,6 +10,7 @@ import {
   getPersonalCollectionName,
   visitCollection,
   modal,
+  dataPopover,
 } from "e2e/support/helpers";
 
 import { SAMPLE_DB_ID, USERS } from "e2e/support/cypress_data";
@@ -48,80 +49,84 @@ describe("scenarios > question > new", () => {
 
       startNewQuestion();
 
-      cy.get(".List-section")
-        .should("have.length", 2)
-        .and("contain", "Sample Database")
-        .and("contain", "Saved Questions");
+      dataPopover().within(() => {
+        cy.findByText("Models");
+        cy.findByText("Raw Data");
+        cy.findByText("Saved Questions");
 
-      // should not trigger search for an empty string
-      cy.findByPlaceholderText("Search for a table…").type("  ").blur();
-      cy.findByPlaceholderText("Search for a table…").type("ord");
-      cy.wait("@search");
-      cy.get("@searchQuery").should("have.been.calledOnce");
+        // should not trigger search for an empty string
+        cy.findByPlaceholderText("Search for some data…").type("  ").blur();
+        cy.findByPlaceholderText("Search for some data…").type("ord");
+        cy.wait("@search");
+        cy.get("@searchQuery").should("have.been.calledOnce");
 
-      // Search results include both saved questions and database tables
-      cy.findAllByTestId("search-result-item").should(
-        "have.length.at.least",
-        4,
-      );
+        // Search results include both saved questions and database tables
+        cy.findAllByTestId("search-result-item").should(
+          "have.length.at.least",
+          4,
+        );
 
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.contains("Saved question in Our analytics");
-      cy.findAllByRole("link", { name: "Our analytics" })
-        .should("have.attr", "href")
-        .and("eq", "/collection/root");
+        cy.contains("Saved question in Our analytics");
+        cy.findAllByRole("link", { name: "Our analytics" })
+          .should("have.attr", "href")
+          .and("eq", "/collection/root");
 
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.contains("Table in Sample Database");
-      cy.findAllByRole("link", { name: "Sample Database" })
-        .should("have.attr", "href")
-        .and("eq", `/browse/${SAMPLE_DB_ID}-sample-database`);
+        cy.contains("Table in Sample Database");
+        cy.findAllByRole("link", { name: "Sample Database" })
+          .should("have.attr", "href")
+          .and("eq", `/browse/${SAMPLE_DB_ID}-sample-database`);
 
-      // Discarding the search query should take us back to the original selector
-      // that starts with the list of databases and saved questions
-      cy.findByPlaceholderText("Search for a table…");
-      cy.findByTestId("input-reset-button").click();
+        // Discarding the search query should take us back to the original selector
+        // that starts with the list of databases and saved questions
+        cy.findByPlaceholderText("Search for some data…");
+        cy.findByTestId("input-reset-button").click();
 
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Saved Questions").click();
+        cy.findByText("Saved Questions").click();
+        cy.findByText("Saved Questions").click();
 
-      // Search is now scoped to questions only
-      cy.findByPlaceholderText("Search for a question…");
-      cy.findByTestId("select-list")
-        .as("rightSide")
-        // should display the collection tree on the left side
-        .should("contain", "Orders")
-        .and("contain", "Orders, Count");
+        cy.findByText("Saved Questions").click();
 
-      cy.get("@rightSide")
-        .siblings()
-        .should("have.length", 1)
-        .as("leftSide")
-        // should display the collection tree on the left side
-        .should("contain", "Our analytics");
+        // Search is now scoped to questions only
+        cy.findByPlaceholderText("Search for a question…");
+        cy.findByTestId("select-list")
+          .as("rightSide")
+          // should display the collection tree on the left side
+          .should("contain", "Orders")
+          .and("contain", "Orders, Count");
 
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Orders, Count").click();
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Orders").should("not.exist");
+        cy.get("@rightSide")
+          .siblings()
+          .should("have.length", 1)
+          .as("leftSide")
+          // should display the collection tree on the left side
+          .should("contain", "Our analytics");
+        cy.findByText("Orders, Count").click();
+        cy.findByText("Orders, Count").click();
+        // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
+        cy.findByText("Orders, Count").click();
+        // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
+        cy.findByText("Orders").should("not.exist");
+      });
+
       visualize();
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("18,760");
+
+      cy.findByTestId("scalar-value").findByText("18,760");
       // should reopen saved question picker after returning back to editor mode
-      cy.icon("notebook").click();
+      cy.findByTestId("qb-header").icon("notebook").click();
+
       cy.findByTestId("data-step-cell").contains("Orders, Count").click();
+
       // It is now possible to choose another saved question
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Orders");
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Saved Questions").click();
-      popover().contains("Sample Database").click();
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Products").click();
+      dataPopover().within(() => {
+        cy.findByText("Saved Questions").click();
+        cy.findByText("Raw Data").click();
+        cy.contains("Sample Database").click();
+        cy.findByText("Products").click();
+      });
+
       cy.findByTestId("data-step-cell").contains("Products");
       visualize();
-      // eslint-disable-next-line no-unscoped-text-selectors -- deprecated usage
-      cy.findByText("Rustic Paper Wallet");
+      cy.get("#main-data-grid").findByText("Rustic Paper Wallet");
     });
 
     it("should suggest questions saved in collections with colon in their name (metabase#14287)", () => {
@@ -131,7 +136,7 @@ describe("scenarios > question > new", () => {
         parent_id: null,
       }).then(({ body: { id: COLLECTION_ID } }) => {
         // Move question #1 ("Orders") to newly created collection
-        cy.request("PUT", `/api/card${ORDERS_QUESTION_ID}`, {
+        cy.request("PUT", `/api/card/${ORDERS_QUESTION_ID}`, {
           collection_id: COLLECTION_ID,
         });
         // Sanity check: make sure Orders is indeed inside new collection
@@ -151,7 +156,7 @@ describe("scenarios > question > new", () => {
     it("'Saved Questions' prompt should respect nested collections structure (metabase#14178)", () => {
       getCollectionIdFromSlug("second_collection", id => {
         // Move first question in a DB snapshot ("Orders") to a "Second collection"
-        cy.request("PUT", `/api/card${ORDERS_QUESTION_ID}`, {
+        cy.request("PUT", `/api/card/${ORDERS_QUESTION_ID}`, {
           collection_id: id,
         });
       });
@@ -169,14 +174,19 @@ describe("scenarios > question > new", () => {
       cy.signOut();
       cy.signIn("nocollection");
       startNewQuestion();
-      popover().findByText("Orders").click();
+
+      dataPopover().within(() => {
+        cy.findByText("Raw Data").click();
+        cy.findByText("Orders").click();
+      });
+
       visualize();
       saveQuestion("Personal question");
 
       cy.signOut();
       cy.signInAsAdmin();
       startNewQuestion();
-      popover().within(() => {
+      dataPopover().within(() => {
         cy.findByText("Saved Questions").click();
         cy.findByText("All personal collections").click();
         cy.findByText(getPersonalCollectionName(USERS.normal)).should(
@@ -185,6 +195,7 @@ describe("scenarios > question > new", () => {
         cy.findByText(getPersonalCollectionName(USERS.nocollection)).click();
         cy.findByText("Personal question").click();
       });
+      // 😫 the whole query builder crashes here
       visualize();
     });
   });

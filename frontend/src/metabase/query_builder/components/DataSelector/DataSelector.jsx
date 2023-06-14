@@ -913,7 +913,7 @@ export class UnconnectedDataSelector extends Component {
     if (this.props.setSourceTableFn) {
       this.props.setSourceTableFn(tableOrModelId);
     }
-    this.popover.current.toggle();
+    this.popover.current?.toggle?.();
     this.handleClose();
   };
 

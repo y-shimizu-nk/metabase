@@ -162,3 +162,5 @@ function runQueryIfNeeded(question, autorun) {
     runNativeQuery({ wait: false });
   }
 }
+
+export const dataPopover = () => cy.get("#DataPopover");
