@@ -42,6 +42,28 @@ export const getAllUploads = (state: State) => Object.values(state.upload);
 export const hasActiveUploads = (state: State) =>
   getAllUploads(state).some(upload => upload.status === "in-progress");
 
+export const showUploadError = createThunkAction(
+  UPLOAD_FILE_TO_COLLECTION_ERROR,
+  (message?: string) => async (dispatch: Dispatch) => {
+    // console.log("showUploadError", message)
+    const id = Date.now();
+    await dispatch(
+      uploadStart({
+        id,
+        name: "",
+        collectionId: 0,
+      }),
+    );
+
+    await dispatch(
+      uploadError({
+        id,
+        message: message ?? t`There was an error uploading the file`,
+      }),
+    );
+  },
+);
+
 export const uploadFile = createThunkAction(
   UPLOAD_FILE_TO_COLLECTION,
   (file: File, collectionId: CollectionId) =>

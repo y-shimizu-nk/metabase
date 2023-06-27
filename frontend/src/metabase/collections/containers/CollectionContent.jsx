@@ -132,14 +132,16 @@ function CollectionContent({
 
   const onDrop = useCallback(
     acceptedFiles => {
-      uploadFile(acceptedFiles[0], collectionId);
+      acceptedFiles.forEach(file => {
+        uploadFile(file, collectionId);
+      });
     },
     [collectionId, uploadFile],
   );
 
   const { getRootProps, isDragActive } = useDropzone({
     onDrop,
-    maxFiles: 1,
+    maxFiles: 5,
     noClick: true,
     noDragEventsBubbling: true,
     accept: { "text/csv": [".csv"] },

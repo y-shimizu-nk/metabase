@@ -21,6 +21,7 @@ export interface CollectionHeaderProps {
   onCreateBookmark: (collection: Collection) => void;
   onDeleteBookmark: (collection: Collection) => void;
   onUpload: (file: File, collectionId: CollectionId) => void;
+  onUploadError: (error: string) => void;
   canUpload: boolean;
   uploadsEnabled: boolean;
 }
@@ -35,6 +36,7 @@ const CollectionHeader = ({
   onCreateBookmark,
   onDeleteBookmark,
   onUpload,
+  onUploadError,
   canUpload,
   uploadsEnabled,
 }: CollectionHeaderProps): JSX.Element => {
@@ -54,6 +56,7 @@ const CollectionHeader = ({
             uploadsEnabled={uploadsEnabled}
             isAdmin={isAdmin}
             onUpload={onUpload}
+            onUploadError={onUploadError}
           />
         )}
         <CollectionTimeline collection={collection} />

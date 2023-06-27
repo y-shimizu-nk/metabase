@@ -16,17 +16,20 @@ import { UploadInput } from "./CollectionUpload.styled";
 import { UploadInfoModal } from "./CollectionUploadInfoModal";
 
 const UPLOAD_FILE_TYPES = [".csv"];
+const FILE_UPLOAD_LIMIT = 5;
 
 export function CollectionUpload({
   collection,
   uploadsEnabled,
   isAdmin,
   onUpload,
+  onUploadError,
 }: {
   collection: Collection;
   uploadsEnabled: boolean;
   isAdmin: boolean;
   onUpload: (file: File, collectionId: CollectionId) => void;
+  onUploadError: (error: string) => void;
 }) {
   const [showInfoModal, setShowInfoModal] = useState(false);
 
@@ -52,10 +55,21 @@ export function CollectionUpload({
   }
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file !== undefined) {
-      onUpload(file, collection.id);
+    if (!event?.target?.files?.length) {
+      return;
     }
+
+    if (event?.target?.files?.length > FILE_UPLOAD_LIMIT) {
+      return onUploadError(
+        t`You can upload a maximum of ${FILE_UPLOAD_LIMIT} files at a time.`,
+      );
+    }
+
+    Object.values(event.target.files).forEach((file: File) => {
+      if (file !== undefined) {
+        onUpload(file, collection.id);
+      }
+    });
   };
 
   return (
@@ -73,6 +87,7 @@ export function CollectionUpload({
         id="upload-csv"
         type="file"
         accept="text/csv"
+        multiple
         onChange={handleFileUpload}
         data-testid="upload-input"
       />
