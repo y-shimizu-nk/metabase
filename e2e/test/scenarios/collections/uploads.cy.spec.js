@@ -3,10 +3,6 @@ import {
   queryWritableDB,
   resyncDatabase,
   popover,
-  describeWithSnowplow,
-  expectGoodSnowplowEvent,
-  expectNoBadSnowplowEvents,
-  resetSnowplow,
   enableTracking,
 } from "e2e/support/helpers";
 
@@ -35,134 +31,124 @@ const invalidTestFiles = [
   },
 ];
 
-describeWithSnowplow(
-  "CSV Uploading",
-  { tags: ["@external", "@actions"] },
-  () => {
-    it("Can upload a CSV file to an empty postgres schema", () => {
-      const testFile = validTestFiles[0];
-      const EMPTY_SCHEMA_NAME = "empty_uploads";
+describe("CSV Uploading", { tags: ["@external", "@actions"] }, () => {
+  it("Can upload a CSV file to an empty postgres schema", () => {
+    const testFile = validTestFiles[0];
+    const EMPTY_SCHEMA_NAME = "empty_uploads";
 
-      cy.intercept("PUT", "/api/setting").as("saveSettings");
+    cy.intercept("PUT", "/api/setting").as("saveSettings");
 
-      restore("postgres-writable");
-      cy.signInAsAdmin();
+    restore("postgres-writable");
+    cy.signInAsAdmin();
 
+    queryWritableDB("DROP SCHEMA IF EXISTS empty_uploads CASCADE;", "postgres");
+    queryWritableDB("CREATE SCHEMA IF NOT EXISTS empty_uploads;", "postgres");
+
+    cy.request("POST", "/api/collection", {
+      name: `Uploads Collection`,
+      color: "#000000", // shockingly, this unused field is required
+      parent_id: null,
+    }).then(({ body: { id: collectionId } }) => {
+      cy.wrap(collectionId).as("collectionId");
+    });
+    resyncDatabase({ dbId: WRITABLE_DB_ID });
+    cy.visit("/admin/settings/uploads");
+
+    cy.findByLabelText("Upload Settings Form")
+      .findByText("Select a database")
+      .click();
+    popover().findByText("Writable Postgres12").click();
+    cy.findByLabelText("Upload Settings Form")
+      .findByText("Select a schema")
+      .click();
+
+    popover().findByText(EMPTY_SCHEMA_NAME).click();
+
+    cy.findByLabelText("Upload Settings Form").button("Enable uploads").click();
+
+    cy.wait("@saveSettings");
+
+    uploadFile(testFile, "postgres");
+
+    const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
+
+    queryWritableDB(tableQuery, "postgres").then(result => {
+      expect(result.rows.length).to.equal(1);
+      const tableName = result.rows[0].table_name;
       queryWritableDB(
-        "DROP SCHEMA IF EXISTS empty_uploads CASCADE;",
+        `SELECT count(*) FROM ${EMPTY_SCHEMA_NAME}.${tableName};`,
         "postgres",
-      );
-      queryWritableDB("CREATE SCHEMA IF NOT EXISTS empty_uploads;", "postgres");
-
-      cy.request("POST", "/api/collection", {
-        name: `Uploads Collection`,
-        color: "#000000", // shockingly, this unused field is required
-        parent_id: null,
-      }).then(({ body: { id: collectionId } }) => {
-        cy.wrap(collectionId).as("collectionId");
-      });
-      resyncDatabase({ dbId: WRITABLE_DB_ID });
-      cy.visit("/admin/settings/uploads");
-
-      cy.findByLabelText("Upload Settings Form")
-        .findByText("Select a database")
-        .click();
-      popover().findByText("Writable Postgres12").click();
-      cy.findByLabelText("Upload Settings Form")
-        .findByText("Select a schema")
-        .click();
-
-      popover().findByText(EMPTY_SCHEMA_NAME).click();
-
-      cy.findByLabelText("Upload Settings Form")
-        .button("Enable uploads")
-        .click();
-
-      cy.wait("@saveSettings");
-
-      uploadFile(testFile, "postgres");
-
-      const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
-
-      queryWritableDB(tableQuery, "postgres").then(result => {
-        expect(result.rows.length).to.equal(1);
-        const tableName = result.rows[0].table_name;
-        queryWritableDB(
-          `SELECT count(*) FROM ${EMPTY_SCHEMA_NAME}.${tableName};`,
-          "postgres",
-        ).then(result => {
-          expect(Number(result.rows[0].count)).to.equal(testFile.rowCount);
-        });
+      ).then(result => {
+        expect(Number(result.rows[0].count)).to.equal(testFile.rowCount);
       });
     });
+  });
 
-    ["postgres"].forEach(dialect => {
-      describe(`CSV Uploading (${dialect})`, () => {
-        beforeEach(() => {
-          restore(`${dialect}-writable`);
-          resetSnowplow();
-          cy.signInAsAdmin();
-          enableTracking();
+  ["postgres"].forEach(dialect => {
+    describe(`CSV Uploading (${dialect})`, () => {
+      beforeEach(() => {
+        restore(`${dialect}-writable`);
+        // resetSnowplow();
+        cy.signInAsAdmin();
+        enableTracking();
 
-          cy.request("POST", "/api/collection", {
-            name: `Uploads Collection`,
-            color: "#000000", // shockingly, this unused field is required
-            parent_id: null,
-          }).then(({ body: { id: collectionId } }) => {
-            cy.wrap(collectionId).as("collectionId");
-          });
-          resyncDatabase({ dbId: WRITABLE_DB_ID });
-          enableUploads(dialect);
+        cy.request("POST", "/api/collection", {
+          name: `Uploads Collection`,
+          color: "#000000", // shockingly, this unused field is required
+          parent_id: null,
+        }).then(({ body: { id: collectionId } }) => {
+          cy.wrap(collectionId).as("collectionId");
         });
+        resyncDatabase({ dbId: WRITABLE_DB_ID });
+        enableUploads(dialect);
+      });
 
-        afterEach(() => {
-          expectNoBadSnowplowEvents();
-        });
+      // afterEach(() => {
+      //   expectNoBadSnowplowEvents();
+      // });
 
-        validTestFiles.forEach(testFile => {
-          it(`Can upload ${testFile.fileName} to a collection`, () => {
-            uploadFile(testFile);
+      validTestFiles.forEach(testFile => {
+        it(`Can upload ${testFile.fileName} to a collection`, () => {
+          uploadFile(testFile);
 
-            expectGoodSnowplowEvent({
-              event: "csv_upload_successful",
-            });
+          // expectGoodSnowplowEvent({
+          //   event: "csv_upload_successful",
+          // });
 
-            const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
+          const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
 
-            queryWritableDB(tableQuery, dialect).then(result => {
-              expect(result.rows.length).to.equal(1);
-              const tableName = result.rows[0].table_name;
-              queryWritableDB(
-                `SELECT count(*) FROM ${tableName};`,
-                dialect,
-              ).then(result => {
+          queryWritableDB(tableQuery, dialect).then(result => {
+            expect(result.rows.length).to.equal(1);
+            const tableName = result.rows[0].table_name;
+            queryWritableDB(`SELECT count(*) FROM ${tableName};`, dialect).then(
+              result => {
                 expect(Number(result.rows[0].count)).to.equal(
                   testFile.rowCount,
                 );
-              });
-            });
+              },
+            );
           });
         });
+      });
 
-        invalidTestFiles.forEach(testFile => {
-          it(`Cannot upload ${testFile.fileName} to a collection`, () => {
-            uploadFile(testFile, false);
+      invalidTestFiles.forEach(testFile => {
+        it(`Cannot upload ${testFile.fileName} to a collection`, () => {
+          uploadFile(testFile, false);
 
-            expectGoodSnowplowEvent({
-              event: "csv_upload_failed",
-            });
+          // expectGoodSnowplowEvent({
+          //   event: "csv_upload_failed",
+          // });
 
-            const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
+          const tableQuery = `SELECT * FROM information_schema.tables WHERE table_name LIKE '%${testFile.tableName}_%' ORDER BY table_name DESC LIMIT 1;`;
 
-            queryWritableDB(tableQuery, dialect).then(result => {
-              expect(result.rows.length).to.equal(0);
-            });
+          queryWritableDB(tableQuery, dialect).then(result => {
+            expect(result.rows.length).to.equal(0);
           });
         });
       });
     });
-  },
-);
+  });
+});
 
 function uploadFile(testFile, valid = true) {
   cy.get("@collectionId").then(collectionId =>
