@@ -218,12 +218,12 @@ export function waitForSyncToFinish({
   dbId = 2,
   tableName = "",
 }) {
-  // 100 x 100ms should be plenty of time for the sync to finish.
-  if (iteration === 100) {
+  // 50 x 200ms should be plenty of time for the sync to finish.
+  if (iteration === 50) {
     throw new Error("The sync is taking too long. Something is wrong.");
   }
 
-  cy.wait(100);
+  cy.wait(200);
 
   cy.request("GET", `/api/database/${dbId}/metadata`).then(({ body }) => {
     if (!body.tables.length) {
