@@ -77,6 +77,7 @@ function question(
       [type]: type === "native" ? native : query,
       database,
     },
+    dataset,
     display,
     parameters,
     visualization_settings,
@@ -95,9 +96,8 @@ function question(
       cy.wrap(body.id).as(idAlias);
     }
 
-    if (dataset || enable_embedding) {
+    if (enable_embedding) {
       cy.request("PUT", `/api/card/${body.id}`, {
-        dataset,
         enable_embedding,
         embedding_params,
       });
