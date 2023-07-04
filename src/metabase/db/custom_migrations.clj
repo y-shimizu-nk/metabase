@@ -673,3 +673,15 @@
                                                      [:like :object "%ref\\\\\",[\\\\\"field%"]
                                                      [:like :object "%ref\\\\\\\",[\\\\\\\"field%"]]
                                                     [:like :object "%join-alias%"]]}))))
+
+(define-migration AddADummyDatabaseCustomMigration
+  (do
+    (println "START EXECUTING a custom migration")
+    (println (format "INSERTED a database with id %d"
+              (first (t2/insert-returning-pks!
+                       :model/Database
+                       {:name       "DB"
+                        :engine     "postgres"
+                        :created_at :%now
+                        t      :updated_at :%now}))))
+    (println "DONE!")))

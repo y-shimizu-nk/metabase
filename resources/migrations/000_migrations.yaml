@@ -15922,6 +15922,31 @@ databaseChangeLog:
                   constraints:
                     nullable: false
 
+  - changeSet:
+      id: v47.00-051
+      author: qnkhuat
+      comment: Added 0.47.0 -
+      changes:
+        - customChange:
+            class: "metabase.db.custom_migrations.AddADummyDatabaseCustomMigration"
+
+  - changeSet:
+      id: v47.00-052
+      author: qnkhuat
+      comment: Added 0.47.0 - this migration will fail because it adds an existing column
+      changes:
+        - addColumn:
+            tableName: metabase_table
+            columns:
+              - column:
+                  name: is_upload
+                  type: boolean
+                  defaultValueBoolean: false
+                  remarks: 'Was the table created from user-uploaded (i.e., from a CSV) data?'
+                  constraints:
+                    nullable: false
+
+
   # >>>>>>>>>> DO NOT ADD NEW MIGRATIONS BELOW THIS LINE! ADD THEM ABOVE <<<<<<<<<<
 
 ########################################################################################################################

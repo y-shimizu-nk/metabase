@@ -165,16 +165,18 @@
    liquibase :- Liquibase]
   (.clearCheckSums liquibase)
   (when (has-unrun-migrations? liquibase)
-    (doseq [line (migrations-lines liquibase)]
-      (log/info line)
-      ;; try executing `line` in a nested transaction
-      (let [save-point (.setSavepoint conn)]
-        (try
-          (jdbc/execute! {:connection conn} [line])
-          (log/info (u/format-color 'green "[SUCCESS]"))
-          (catch Throwable e
-            (.rollback conn save-point)
-            (log/error (u/format-color 'red "[ERROR] %s" (.getMessage e)))))))))
+    (let [lines (migrations-lines liquibase)]
+      (log/info "Start running force migrations")
+      (doseq [line lines]
+        (log/info line)
+        ;; try executing `line` in a nested transaction
+        (let [save-point (.setSavepoint conn)]
+          (try
+            (jdbc/execute! {:connection conn} [line])
+            (log/info (u/format-color 'green "[SUCCESS]"))
+            (catch Throwable e
+              (.rollback conn save-point)
+              (log/error (u/format-color 'red "[ERROR] %s" (.getMessage e))))))))))
 
 (defn- changelog-table-name
   "Returns case-sensitive database-specific name for Liquibase changelog table for db-type"
