@@ -5,7 +5,6 @@
    [clojure.walk :as walk]
    [goog]
    [goog.object :as gobject]
-   [metabase.lib.convert :as lib.convert]
    [metabase.lib.metadata.protocols :as lib.metadata.protocols]
    [metabase.lib.util :as lib.util]
    [metabase.util :as u]
@@ -398,15 +397,15 @@
   (some-> metadata :segments deref (get segment-id) deref))
 
 (defn- tables [metadata database-id]
-  (for [[_id table-delay]  (some-> metadata :tables deref)
-        :let               [a-table (some-> table-delay deref)]
-        :when              (and a-table (= (:db-id a-table) database-id))]
+  (for [[_id table-delay] (some-> metadata :tables deref)
+        :let              [a-table (some-> table-delay deref)]
+        :when             (and a-table (= (:db-id a-table) database-id))]
     a-table))
 
 (defn- fields [metadata table-id]
-  (for [[_id field-delay]  (some-> metadata :fields deref)
-        :let               [a-field (some-> field-delay deref)]
-        :when              (and a-field (= (:table-id a-field) table-id))]
+  (for [[_id field-delay] (some-> metadata :fields deref)
+        :let              [a-field (some-> field-delay deref)]
+        :when             (and a-field (= (:table-id a-field) table-id))]
     a-field))
 
 (defn- metrics [metadata table-id]
