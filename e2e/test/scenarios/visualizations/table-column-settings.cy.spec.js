@@ -405,7 +405,7 @@ describe("scenarios > visualizations > table column settings", () => {
       visualization().findByText("Tax").should("exist");
     });
 
-    it.skip("should be able to show and hide fields from a nested query with joins (metabase#32373)", () => {
+    it("should be able to show and hide fields from a nested query with joins (metabase#32373)", () => {
       cy.createQuestion(tableQuestionWithJoin).then(({ body: card }) => {
         cy.createQuestion(nestedQuestion(card), { visitQuestion: true });
       });
@@ -433,7 +433,7 @@ describe("scenarios > visualizations > table column settings", () => {
       visualization().findByText("Products → Ean").should("exist");
     });
 
-    it.skip("should be able to show and hide fields from a nested query with joins and fields (metabase#32373)", () => {
+    it("should be able to show and hide fields from a nested query with joins and fields (metabase#32373)", () => {
       cy.createQuestion(tableQuestionWithJoinAndFields).then(
         ({ body: card }) => {
           cy.createQuestion(nestedQuestion(card), { visitQuestion: true });
