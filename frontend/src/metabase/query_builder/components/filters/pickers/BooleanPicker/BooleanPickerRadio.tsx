@@ -3,26 +3,25 @@ import { useMemo } from "react";
 import * as ML from "metabase-lib";
 
 import { useToggle } from "metabase/hooks/use-toggle";
-import Filter from "metabase-lib/queries/structured/Filter";
 
 import { RadioContainer, Toggle, FilterRadio } from "./BooleanPicker.styled";
 
 import { OPTIONS, EXPANDED_OPTIONS } from "./constants";
 
 interface BooleanPickerProps {
-  filter: Filter;
-  onFilterChange: (filter: Filter) => void;
+  filter: ML.FilterClause;
+  query: ML.Query;
+  onFilterChange: (query: ML.Query) => void;
   className?: string;
 }
 
 function BooleanPicker({
   className,
   filter,
+  query,
   onFilterChange,
 }: BooleanPickerProps) {
-  const [mlv2Filter, mlv2Query] = filter._getMLv2Filter();
-
-  const { args } = ML.externalOp(mlv2Filter);
+  const { args } = ML.externalOp(filter);
   const [mlv2Column, value] = args;
 
   const [isExpanded, { toggle }] = useToggle(!_.isBoolean(value));
@@ -32,11 +31,11 @@ function BooleanPicker({
 
     return Object.fromEntries(
       operators.map((operator: ML.FilterOperator) => [
-        ML.displayInfo(mlv2Query, -1, operator).shortName,
+        ML.displayInfo(query, -1, operator).shortName,
         operator,
       ]),
     );
-  }, [mlv2Column, mlv2Query]);
+  }, [mlv2Column, query]);
 
   const updateFilter = (value: unknown) => {
     const operator = _.isBoolean(value)
@@ -46,7 +45,7 @@ function BooleanPicker({
 
     const newFilterClause = ML.filterClause(operator, mlv2Column, filterValue);
 
-    onFilterChange(newFilterClause._toLegacyFilter());
+    onFilterChange(newFilterClause);
   };
 
   return (
