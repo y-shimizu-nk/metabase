@@ -155,10 +155,6 @@ jobs:
         with:
           java-version: ${{ matrix.java-version }}
           distribution: "temurin"
-      - name: Prepare Cypress environment
-        uses: ./.github/actions/prepare-cypress
-      - name: Run Snowplow micro
-        uses: ./.github/actions/run-snowplow-micro
 
       - name: Install Chrome v114
         uses: browser-actions/setup-chrome@v1
@@ -171,6 +167,10 @@ jobs:
           echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
           ${{ steps.setup-chrome.outputs.chrome-path }} --version
 
+      - name: Prepare Cypress environment
+        uses: ./.github/actions/prepare-cypress
+      - name: Run Snowplow micro
+        uses: ./.github/actions/run-snowplow-micro
 
       - name: Get the version info
         run: |
