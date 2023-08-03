@@ -167,7 +167,7 @@ jobs:
           echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
           ${{ steps.setup-chrome.outputs.chrome-path }} --version
       - name: Symlink Chrome
-        run: sudo ln `which chrome` /usr/bin/google-chrome
+        run: sudo ln -f `which chrome` /usr/bin/google-chrome
 
       - name: Prepare Cypress environment
         uses: ./.github/actions/prepare-cypress
