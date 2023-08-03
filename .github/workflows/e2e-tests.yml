@@ -166,6 +166,8 @@ jobs:
       - run: |
           echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
           ${{ steps.setup-chrome.outputs.chrome-path }} --version
+      - name: Symlink Chrome
+        run: sudo ln `which chrome` /usr/bin/google-chrome
 
       - name: Prepare Cypress environment
         uses: ./.github/actions/prepare-cypress
@@ -182,8 +184,7 @@ jobs:
         run: |
           yarn run test-cypress-run \
           --env grepTags=@OSS \
-          --spec './e2e/test/scenarios/**/*.cy.spec.js' \
-          --browser ${{ steps.setup-chrome.outputs.chrome-path }}
+          --spec './e2e/test/scenarios/**/*.cy.spec.js'
         env:
           TERM: xterm
 
@@ -192,8 +193,7 @@ jobs:
         run: |
           DEBUG=cypress:* yarn run test-cypress-run \
           --env grepTags="-@quarantine" \
-          --folder ${{ matrix.folder }} \
-          --browser ${{ steps.setup-chrome.outputs.chrome-path }}
+          --folder ${{ matrix.folder }}
         env:
           TERM: xterm
 
