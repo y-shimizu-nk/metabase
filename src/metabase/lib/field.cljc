@@ -645,7 +645,7 @@
       ;; Default case - do nothing if we don't know about the incoming value.
       ;; Generates a warning, as we should aim to capture all the :source/* values here.
       (do
-        (log/warn (i18n/tru "Cannot add-field with unknown source " (pr-str source)))
+        (log/warn (i18n/tru "Cannot add-field with unknown source {0}" (pr-str source)))
         query))))
 
 (defn- remove-matching-ref [query a-ref refs]
@@ -719,7 +719,7 @@
       :source/native              (throw (ex-info (native-query-fields-edit-error) {:query query :stage stage-number}))
       ;; Generate a warning - we should aim to capture every `:source/*` value above.
       (do
-        (log/warn (i18n/tru "Cannot remove-field with unknown source " (pr-str source)))
+        (log/warn (i18n/tru "Cannot remove-field with unknown source {0}" (pr-str source)))
         query))))
 
 (mu/defn find-visible-column-for-ref :- [:maybe lib.metadata/ColumnMetadata]
