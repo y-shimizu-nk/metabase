@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     name: Build MB ${{ matrix.edition }}
-    runs-on: buildjet-8vcpu-ubuntu-2204-arm
+    runs-on: buildjet-16vcpu-ubuntu-2204-arm
     timeout-minutes: 40
     strategy:
       matrix:
