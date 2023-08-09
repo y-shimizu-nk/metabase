@@ -5,6 +5,8 @@ const {
   NodeModulesPolyfillPlugin,
 } = require("@esbuild-plugins/node-modules-polyfill");
 
+const cypressSplit = require("cypress-split");
+
 const isEnterprise = process.env["MB_EDITION"] === "ee";
 
 const hasSnowplowMicro = process.env["MB_SNOWPLOW_AVAILABLE"];
@@ -34,6 +36,8 @@ const defaultConfig = {
       on,
       config,
     );
+
+    cypressSplit(on, config);
 
     // `on` is used to hook into various events Cypress emits
     // `config` is the resolved Cypress config

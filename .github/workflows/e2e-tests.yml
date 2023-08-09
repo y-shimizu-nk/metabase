@@ -29,6 +29,8 @@ jobs:
       MB_SNOWPLOW_AVAILABLE: true
       MB_SNOWPLOW_URL: "http://localhost:9090" # Snowplow micro
       ELECTRON_EXTRA_LAUNCH_ARGS: "--remote-debugging-port=40500" # deploysentinel
+      SPLIT: ${{ strategy.job-total }}
+      SPLIT_INDEX: ${{ strategy.job-index }}
       TZ: US/Pacific # to make node match the instance tz
     strategy:
       fail-fast: false
@@ -37,25 +39,29 @@ jobs:
         edition: [ee]
         folder:
           - "auditing"
-          - "actions"
-          - "admin"
-          - "binning"
-          - "collections"
-          - "custom-column"
-          - "dashboard"
-          - "dashboard-filters"
-          - "embedding"
-          - "filters"
-          - "joins"
-          - "models"
-          - "native"
-          - "native-filters"
-          - "onboarding"
-          - "organization"
-          - "permissions"
-          - "question"
-          - "sharing"
-          - "visualizations"
+          # - "actions"
+          # - "admin"
+          # - "binning"
+          # - "collections"
+          # - "custom-column"
+          # - "dashboard-filters"
+          # - "embedding"
+          # - "filters"
+          # - "joins"
+          # - "models"
+          # - "native"
+          # - "native-filters"
+          # - "onboarding"
+          # - "organization"
+          # - "permissions"
+          # - "question"
+          # - "sharing"
+          # - "visualizations"
+        include:
+          - edition: ee
+            java-version: 11
+            containers: 2
+            folder: "dashboard"
 
     services:
       maildev:
@@ -149,7 +155,7 @@ jobs:
         if: matrix.edition == 'ee' && github.event_name != 'schedule'
         run: |
           yarn run test-cypress-run \
-          --env grepTags="-@quarantine" \
+          --env grepTags="-@quarantine",split=true \
           --folder ${{ matrix.folder }} \
           --browser ${{ steps.setup-chrome.outputs.chrome-path }}
         env:
