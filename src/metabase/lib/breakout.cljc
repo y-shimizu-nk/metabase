@@ -74,7 +74,7 @@
                 (lib.metadata.calculation/visible-columns query stage-number stage))]
      (when (seq cols)
        (let [matching (lib.equality/find-closest-matches-for-refs
-                        query (breakouts query stage-number) cols)]
+                        query stage-number (breakouts query stage-number) cols)]
          (mapv #(let [pos (matching %)]
                   (cond-> %
                     pos (assoc :breakout-position pos)))

@@ -495,6 +495,7 @@
         stage          (lib.util/query-stage a-query stage-number)
         vis-columns    (lib.metadata.calculation/visible-columns a-query stage-number stage options)
         ret-columns    (lib.metadata.calculation/returned-columns a-query stage-number stage)]
+    (js/console.log "opts" options "vis" vis-columns "ret" ret-columns)
     (to-array (lib.equality/mark-selected-columns vis-columns ret-columns))))
 
 (defn ^:export legacy-field-ref
@@ -535,7 +536,7 @@
   (convert/with-aggregation-list (:aggregation (lib.util/query-stage a-query stage-number))
     (let [columns       (mapv ->column-or-ref legacy-columns)
           field-refs    (map legacy-ref->pMBQL legacy-refs)
-          matches       (lib.equality/find-closest-matches-for-refs a-query field-refs columns)
+          matches       (lib.equality/find-closest-matches-for-refs a-query stage-number field-refs columns)
           ;; matches is a map of columns to the corresponding index in field-refs.
           ;; We want to return a parallel list to field-refs, giving the index of the matching column (or -1).
           ;; First, map each column to its index (in the column list).
