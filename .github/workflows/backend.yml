@@ -1,10 +1,7 @@
-name: Backend
+name: Backend Benchmark
 
 on:
   push:
-    branches:
-      - 'master'
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -34,7 +31,7 @@ jobs:
   be-linter-cloverage:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     steps:
     - uses: actions/checkout@v3
@@ -132,7 +129,7 @@ jobs:
   be-tests-java-11-ee-pre-check:
     needs: files-changed
     if: github.event.pull_request.draft == true && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     name: be-tests-java-11-ee-pre-check
     timeout-minutes: 60
     steps:
@@ -165,7 +162,7 @@ jobs:
   be-tests:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     name: be-tests-java-${{ matrix.java-version }}-${{ matrix.edition }}
     timeout-minutes: 60
     strategy:

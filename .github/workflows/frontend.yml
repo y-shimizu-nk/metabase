@@ -1,10 +1,7 @@
-name: Frontend
+name: Frontend Benchmark
 
 on:
   push:
-    branches:
-      - 'master'
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -78,7 +75,7 @@ jobs:
   fe-tests-unit:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.frontend_all == 'true'
-    runs-on: buildjet-2vcpu-ubuntu-2204
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@v3
@@ -99,7 +96,7 @@ jobs:
   fe-tests-timezones:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.frontend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@v3

@@ -1,10 +1,7 @@
-name: Driver Tests
+name: Driver Tests Bencmhark
 
 on:
   push:
-    branches:
-      - 'master'
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -31,7 +28,7 @@ jobs:
   be-tests-athena-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -51,7 +48,7 @@ jobs:
   be-tests-bigquery-cloud-sdk-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -73,7 +70,7 @@ jobs:
   be-tests-druid-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -96,7 +93,7 @@ jobs:
   be-tests-googleanalytics-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -112,7 +109,7 @@ jobs:
   be-google-related-drivers-classpath-test:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -134,7 +131,7 @@ jobs:
   be-tests-mariadb-10-2-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -160,7 +157,7 @@ jobs:
   be-tests-mariadb-latest-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -186,7 +183,7 @@ jobs:
   be-tests-mongo-4-2-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -209,7 +206,7 @@ jobs:
   be-tests-mongo-4-2-ssl-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -244,7 +241,7 @@ jobs:
   be-tests-mongo-5-0-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -267,7 +264,7 @@ jobs:
   be-tests-mongo-5-0-ssl-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -302,7 +299,7 @@ jobs:
   be-tests-mongo-latest-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -328,7 +325,7 @@ jobs:
   be-tests-mysql-5-7-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -354,7 +351,7 @@ jobs:
   be-tests-mysql-latest-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -392,7 +389,7 @@ jobs:
   be-tests-oracle-18-4-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -419,7 +416,7 @@ jobs:
   be-tests-oracle-21-3-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -455,7 +452,7 @@ jobs:
   be-tests-postgres-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -484,7 +481,7 @@ jobs:
   be-tests-postgres-latest-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -517,7 +514,7 @@ jobs:
   be-tests-presto-jdbc-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -567,7 +564,7 @@ jobs:
   be-tests-redshift-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -587,7 +584,7 @@ jobs:
   be-tests-snowflake-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -609,7 +606,7 @@ jobs:
   be-tests-sparksql-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -630,7 +627,7 @@ jobs:
   be-tests-sqlite-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -646,7 +643,7 @@ jobs:
   be-tests-sqlserver-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'
@@ -674,7 +671,7 @@ jobs:
   be-tests-vertica-ee:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.backend_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     env:
       CI: 'true'

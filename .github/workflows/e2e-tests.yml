@@ -1,13 +1,10 @@
-name: E2E Tests
+name: E2E Tests Benchmark
 
 on:
   # We'll record runs using Replay.io and their browser on a schedule as an experiment
   schedule:
     - cron: '0 22 * * 0'
   push:
-    branches:
-      - "master"
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -41,7 +38,7 @@ jobs:
   build:
     needs: files-changed
     if: github.event.pull_request.draft == false && needs.files-changed.outputs.e2e_all == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 25
     strategy:
       matrix:
@@ -70,7 +67,7 @@ jobs:
       !cancelled() &&
       needs.files-changed.outputs.e2e_all == 'true' &&
       needs.build.result == 'success'
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 90
     name: e2e-tests-${{ matrix.folder }}${{ matrix.context }}-${{ matrix.edition }}
     env:
@@ -307,7 +304,7 @@ jobs:
           echo "Didn't run due to conditional filtering"
 
   visual-regression-tests:
-    runs-on: ubuntu-22.04
+    runs-on: CUSTOM_GH_RUNNER_NAME
     timeout-minutes: 60
     needs: build
     if: ${{ github.event_name != 'schedule' }}
