@@ -14,7 +14,6 @@
    [metabase.lib.schema.id :as lib.schema.id]
    [metabase.lib.schema.ref :as lib.schema.ref]
    [metabase.lib.util :as lib.util]
-   [metabase.mbql.util.match :as mbql.u.match]
    [metabase.util.malli :as mu]))
 
 (defmulti =

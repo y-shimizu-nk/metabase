@@ -4,7 +4,6 @@
    [medley.core :as m]
    [metabase.lib.aggregation :as lib.aggregation]
    [metabase.lib.binning :as lib.binning]
-   [metabase.lib.card :as lib.card]
    [metabase.lib.equality :as lib.equality]
    [metabase.lib.expression :as lib.expression]
    [metabase.lib.join :as lib.join]
@@ -680,6 +679,7 @@
                                     (:fields stage) (exclude-field stage-number column))
       :source/joins               (remove-field-from-join query stage-number column)
       :source/native              (throw (ex-info (native-query-fields-edit-error) {:query query :stage stage-number}))
+      ;; Default case: do nothing and return the query unchaged.
       ;; Generate a warning - we should aim to capture every `:source/*` value above.
       (do
         (log/warn (i18n/tru "Cannot remove-field with unknown source {0}" (pr-str source)))
