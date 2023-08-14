@@ -34,11 +34,11 @@ jobs:
 
 
             zip=$(echo $artifacts | jq '[.artifacts[] | {url: .url, dl: .archive_download_url, run: .workflow_run}]' \
-            | jq -c --arg COMMIT "$parent_commit" '[.[] | select(.run.head_sha | contains($COMMIT))'.dl] | jq '.[0]')
+            | jq -c --arg COMMIT "$parent_commit" '[.[] | select(.run.head_sha | contains($COMMIT))'.dl] | jq '.[0] | select (.!=null)')
 
             if [[ $zip ]]; then
                 echo $zip
-            elif [[ $current_page -le 15 ]]; then
+            elif [[ $current_page -le 5 ]]; then
                 echo "Didn't find the artifact for '$parent_commit' on the page: $current_page."
                 current_page=$((++current_page))
                 main $parent_commit $current_page
