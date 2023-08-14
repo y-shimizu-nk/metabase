@@ -1,0 +1,49 @@
+name: Artifact
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        edition: [oss, ee]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Artifact zip URL
+        run: |
+          artifacts=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/metabase/metabase/actions/artifacts?name=metabase-${{ matrix.edition }}-uberjar")
+
+          get_parent () {
+            parent_commit=$(git rev-parse $1^)
+            echo $parent_commit
+          }
+
+          get_artifact_dl () {
+            parent_commit=$(get_parent $1)
+
+            echo $parent_commit
+
+            zip=$(echo $artifacts | jq '[.artifacts[] | {url: .url, dl: .archive_download_url, run: .workflow_run}]' \
+              | jq -c '.[] | select(.run.head_sha | contains("$parent_commit"))'.dl)
+
+            echo $zip
+
+            if [[ $zip ]]; then
+                echo $zip
+            else
+                echo "Didn't find the artifact in the parent commit"
+                get_artifact_dl $(get_parent $parent_commit)
+            fi
+          }
+
+          get_artifact_dl "HEAD"
+        id: foobar
+        shell: bash
