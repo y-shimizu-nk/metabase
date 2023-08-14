@@ -16,34 +16,40 @@ jobs:
           fetch-depth: 0
       - name: Artifact zip URL
         run: |
-          artifacts=$(curl -sL \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/metabase/metabase/actions/artifacts?name=metabase-${{ matrix.edition }}-uberjar")
-
           get_parent () {
             parent_commit=$(git rev-parse $1^)
             echo $parent_commit
           }
 
-          get_artifact_dl () {
+          main () {
             parent_commit=$(get_parent $1)
-
             echo $parent_commit
 
-            zip=$(echo $artifacts | jq '[.artifacts[] | {url: .url, dl: .archive_download_url, run: .workflow_run}]' \
-              | jq -c '.[] | select(.run.head_sha | contains("$parent_commit"))'.dl)
+            current_page=${2:-1}
 
-            echo $zip
+            artifacts=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/metabase/metabase/actions/artifacts?name=metabase-${{ matrix.edition }}-uberjar&per_page=100&page=$current_page")
+
+
+            zip=$(echo $artifacts | jq '[.artifacts[] | {url: .url, dl: .archive_download_url, run: .workflow_run}]' \
+            | jq -c --arg COMMIT "$parent_commit" '[.[] | select(.run.head_sha | contains($COMMIT))'.dl] | jq '.[0]')
 
             if [[ $zip ]]; then
                 echo $zip
+            elif [[ $current_page -le 15 ]]; then
+                echo "Didn't find the artifact for '$parent_commit' on the page: $current_page."
+                current_page=$((++current_page))
+                main $parent_commit $current_page
             else
-                echo "Didn't find the artifact in the parent commit"
-                get_artifact_dl $(get_parent $parent_commit)
+              echo "Switching to a new parent"
+              parent_commit=$(get_parent parent_commit)
+              exit 1
+              # main $(get_parent $parent_commit)
             fi
           }
 
-          get_artifact_dl "HEAD"
+          main "HEAD"
         id: foobar
         shell: bash
