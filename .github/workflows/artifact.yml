@@ -37,19 +37,20 @@ jobs:
             | jq -c --arg COMMIT "$parent_commit" '[.[] | select(.run.head_sha | contains($COMMIT))'.dl] | jq '.[0] | select (.!=null)')
 
             if [[ $zip ]]; then
-                echo $zip
+                echo "download_link=$(echo $zip)" >> $GITHUB_OUTPUT
             elif [[ $current_page -le 5 ]]; then
                 echo "Didn't find the artifact for '$parent_commit' on the page: $current_page."
                 current_page=$((++current_page))
                 main $parent_commit $current_page
             else
-              echo "Switching to a new parent"
-              parent_commit=$(get_parent parent_commit)
-              exit 1
-              # main $(get_parent $parent_commit)
+              parent_commit=$(get_parent $parent_commit)
+              echo "Switching to a new parent $parent_commit"
+              main $parent_commit
             fi
           }
 
           main "HEAD"
         id: foobar
         shell: bash
+      - name: Get the output in the next job
+        run: echo ${{ steps.foobar.outputs.download_link }}
