@@ -5,9 +5,6 @@ on:
   schedule:
     - cron: '0 22 * * 0'
   push:
-    branches:
-      - "master"
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -38,9 +35,74 @@ jobs:
           token: ${{ github.token }}
           filters: .github/file-paths.yaml
 
+  download_uberjar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        edition: [oss, ee]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Artifact zip URL
+        run: |
+          get_parent () {
+            parent_commit=$(git rev-parse $1^)
+            echo $parent_commit
+          }
+
+          main () {
+            parent_commit=$(get_parent $1)
+            echo $parent_commit
+
+            current_page=${2:-1}
+
+            artifacts=$(curl -sL \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/metabase/metabase/actions/artifacts?name=metabase-${{ matrix.edition }}-uberjar&per_page=100&page=$current_page")
+
+
+            zip=$(echo $artifacts | jq '[.artifacts[] | {url: .url, dl: .archive_download_url, run: .workflow_run}]' \
+            | jq -c --arg COMMIT "$parent_commit" '[.[] | select(.run.head_sha | contains($COMMIT))'.dl] | jq '.[0] | select (.!=null)')
+
+            if [[ $zip ]]; then
+                echo "download_link=$(echo $zip)" >> $GITHUB_OUTPUT
+            elif [[ $current_page -le 5 ]]; then
+                echo "Didn't find the artifact for '$parent_commit' on the page: $current_page."
+                current_page=$((++current_page))
+                main $parent_commit $current_page
+            else
+              parent_commit=$(get_parent $parent_commit)
+              echo "Switching to a new parent $parent_commit"
+              main $parent_commit
+            fi
+          }
+
+          main "HEAD"
+        id: foobar
+        shell: bash
+      - name: Get the output in the next job
+        run: echo ${{ steps.foobar.outputs.download_link }}
+      - name: Download Metabase uberjar from a previously stored artifact
+        run: |
+          curl -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            ${{ steps.foobar.outputs.download_link }} \
+            -o mb.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Unzip Metabase artifact containing an uberjar
+        run: unzip mb.zip
+      - name: Prepare uberjar artifact
+        uses: ./.github/actions/prepare-uberjar-artifact
+
   build:
-    needs: files-changed
-    if: github.event.pull_request.draft == false && needs.files-changed.outputs.e2e_all == 'true'
+    needs: download_uberjar
+    if: needs.download_uberjar.result != 'success'
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     strategy:
