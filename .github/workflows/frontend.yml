@@ -2,9 +2,6 @@ name: Frontend
 
 on:
   push:
-    branches:
-      - 'master'
-      - 'release-**'
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -89,8 +86,12 @@ jobs:
       with:
         m2-cache-key: 'cljs'
     - run: yarn run test-unit --coverage --silent
+      if: github.ref == 'refs/heads/master'
+    - run: yarn run test-unit
+      if: github.ref != 'refs/heads/master'
       name: Run frontend unit tests
     - name: Upload coverage to codecov.io
+      if: github.ref == 'refs/heads/master'
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage/lcov.info
