@@ -1,8 +1,6 @@
+const { alias } = require("./webpack.common");
 const SRC_PATH = __dirname + "/frontend/src/metabase";
 const BUILD_PATH = __dirname + "/resources/frontend_client";
-const CLJS_SRC_PATH = __dirname + "/frontend/src/cljs_release";
-const LIB_SRC_PATH = __dirname + "/frontend/src/metabase-lib";
-const TYPES_SRC_PATH = __dirname + "/frontend/src/metabase-types";
 
 const BABEL_CONFIG = {
   cacheDirectory: process.env.BABEL_DISABLE_CACHE ? null : ".babel_cache",
@@ -45,12 +43,7 @@ module.exports = env => {
     },
     resolve: {
       extensions: [".webpack.js", ".web.js", ".js", ".jsx", ".ts", ".tsx"],
-      alias: {
-        metabase: SRC_PATH,
-        cljs: CLJS_SRC_PATH,
-        "metabase-lib": LIB_SRC_PATH,
-        "metabase-types": TYPES_SRC_PATH,
-      },
+      alias,
     },
     optimization: {
       minimize: !shouldDisableMinimization,
