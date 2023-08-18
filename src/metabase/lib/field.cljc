@@ -469,7 +469,7 @@
          expr-refs (expression-refs query stage-number)
          ;; Set of indexes of expr-refs which are *already* included.
          included  (set (when xs
-                          (vals (lib.equality/find-closest-matches-for-refs expr-refs xs))))
+                          (vals (lib.equality/find-closest-matches-for-refs expr-refs xs {:keep-join? true}))))
          ;; Those expr-refs which must still be included.
          to-add    (keep-indexed #(when-not (included %1) %2) expr-refs)
          xs        (when xs (into xs to-add))]
@@ -537,11 +537,17 @@
 
 (defn- include-field [query stage-number column]
   (let [populated  (query-with-fields query stage-number)
-        column-ref (lib.ref/ref column)]
-    #?(:cljs (js/console.log "include-field" column column-ref
-                             (lib.equality/find-closest-matching-ref populated stage-number column-ref
-                                                                     (fields populated stage-number))))
-    (if (lib.equality/find-closest-matching-ref populated stage-number column-ref (fields populated stage-number))
+        column-ref (lib.ref/ref column)
+        field-refs (fields populated stage-number)
+        match-opts {:keep-join? true}
+        match-ref  (if (and (integer? (last column-ref))
+                            (every? (comp integer? last) field-refs))
+                     (lib.equality/find-closest-matching-ref column-ref field-refs match-opts)
+                     (lib.equality/find-closest-matching-ref populated stage-number column-ref field-refs match-opts))]
+    #?(:cljs (js/console.log "include-field" column-ref field-refs match-ref))
+    (if (and match-ref
+             (or (string? (last column-ref))
+                 (integer? (last match-ref))))
       ;; If the column is already found, do nothing and return the original query.
       query
       (lib.util/update-query-stage populated stage-number update :fields conj column-ref))))
@@ -552,7 +558,8 @@
                                   :let [joinables (lib.join/joinable-columns query stage-number join)
                                         field (or (lib.equality/closest-matching-metadata
                                                    query stage-number column-ref
-                                                   joinables)
+                                                   joinables
+                                                   {:keep-join? true})
                                                   ;; TODO: Remove this if it's really not needed anymore.
                                                   ;; Sometimes we have to resolve a column marked as coming from a join.
                                                   ;; Here we try to match with the joinable columns ignoring the diference
@@ -560,7 +567,8 @@
                                                   #_(lib.equality/find-closest-matching-ref
                                                    query stage-number column-ref
                                                    (mapv #(assoc % :lib/source (:lib/source column))
-                                                         joinables)))]
+                                                         joinables)
+                                                   {:keep-join? true}))]
                                   :when field]
                               [join field]))
         join-fields  (lib.join/join-fields join)]
@@ -587,7 +595,7 @@
       - If `:fields` is missing, it's implicitly `:all`, so do nothing.
   - Implicit join: add it to the `:fields` list; query processor will do the right thing with it.
   - Explicit join: add it to that join's `:fields` list."
-  [query      :- ::lib.schema/query
+  [query        :- ::lib.schema/query
    stage-number :- :int
    column       :- lib.metadata.calculation/ColumnMetadataWithSource]
   (let [stage  (lib.util/query-stage query stage-number)
@@ -611,7 +619,7 @@
         query))))
 
 (defn- remove-matching-ref [query stage-number a-ref refs]
-  (let [match (lib.equality/find-closest-matching-ref query stage-number a-ref refs)]
+  (let [match (lib.equality/find-closest-matching-ref query stage-number a-ref refs {:keep-join? true})]
      (remove #(= % match) refs)))
 
 (defn- exclude-field
