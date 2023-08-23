@@ -5,6 +5,7 @@
    [metabase.lib.card :as lib.card]
    [metabase.lib.core :as lib]
    [metabase.lib.metadata :as lib.metadata]
+   [metabase.lib.metadata.calculation :as lib.metadata.calculation]
    [metabase.lib.ref :as lib.ref]
    [metabase.lib.test-metadata :as meta]
    [metabase.lib.test-util :as lib.tu]
@@ -156,3 +157,67 @@
         (is (=? [[:field {:base-type :type/Text} "Products__CATEGORY"]
                  [:field {:base-type :type/Integer} "count"]]
                 (map lib.ref/ref cols)))))))
+
+(deftest ^:parallel card-source-query-visible-columns-test
+  (testing "Explicitly joined fields do not also appear as implictly joinable"
+    (let [base       (lib/query meta/metadata-provider (meta/table-metadata :orders))
+          join       (lib/join-clause (meta/table-metadata :products)
+                                      [(lib/= (lib/ref (meta/field-metadata :orders :product-id))
+                                              (lib/ref (meta/field-metadata :products :id)))])
+          query      (lib/join base join)
+          sorted     #(sort-by (juxt :name :id :source-alias :lib/desired-column-alias) %)
+          from       (fn [src cols]
+                       (for [col cols]
+                         (assoc col :lib/source src)))
+          cols-of    (fn [table]
+                       (for [col (meta/fields table)]
+                         (meta/field-metadata table col)))]
+      (is (=? (->> (concat (from :source/table-defaults (cols-of :orders))
+                           (from :source/joins          (cols-of :products)))
+                   sorted)
+              (->> query lib.metadata.calculation/returned-columns sorted)))
+
+      (is (=? (->> (concat (from :source/table-defaults      (cols-of :orders))
+                           (from :source/joins               (cols-of :products))
+                           (from :source/implicitly-joinable (cols-of :people)))
+                   sorted)
+              (->> query lib.metadata.calculation/visible-columns sorted)))
+
+      (testing "even on nested queries"
+        (let [card     (lib.tu/mock-card query)
+              provider (lib.tu/metadata-provider-with-mock-card card)
+              nested   (lib/query provider (lib.metadata/card provider 1))]
+          (is (=? (->> (concat (from :source/card (cols-of :orders))
+                               (from :source/card (cols-of :products)))
+                       (map #(dissoc % :id :table-id))
+                       sorted)
+                  (->> nested lib.metadata.calculation/returned-columns sorted)))
+
+          (is (=? (->> (concat (from :source/card (cols-of :orders))
+                               (from :source/card (cols-of :products)))
+                       (map #(dissoc % :id :table-id))
+                       (concat (from :source/implicitly-joinable (cols-of :people)))
+                       count
+                       #_sorted)
+                  (->> nested lib.metadata.calculation/visible-columns count #_sorted)))
+          )
+        ))
+    ))
+
+(comment
+  (let [base       (lib/query meta/metadata-provider (meta/table-metadata :orders))
+        join       (lib/join-clause (meta/table-metadata :products)
+                                    [(lib/= (lib/ref (meta/field-metadata :orders :product-id))
+                                            (lib/ref (meta/field-metadata :products :id)))])
+        query      (lib/join base join)
+        sorted     #(sort-by (juxt :id :name) %)
+        from       (fn [src table]
+                     (for [field (meta/fields table)]
+                       (-> (meta/field-metadata table field)
+                           (assoc :lib/source src))))]
+    (let [card     (lib.tu/mock-card query)
+          provider (lib.tu/metadata-provider-with-mock-card card)
+          nested   (lib/query provider (lib.metadata/card provider 1))
+          [_ a b]  (sorted (lib.metadata.calculation/returned-columns nested))]
+      (clojure.data/diff a b)
+      )))

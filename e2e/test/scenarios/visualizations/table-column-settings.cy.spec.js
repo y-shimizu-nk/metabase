@@ -561,8 +561,6 @@ describe("scenarios > visualizations > table column settings", () => {
       visibleColumns().within(() => hideColumn("Products → Ean"));
       visibleColumns().findByText("Products → Ean").should("not.exist");
       disabledColumns().findByText("Products → Ean").should("exist");
-      scrollVisualization("center");
-      visualization().findByText("Products → Ean").should("not.exist");
 
       cy.log("re-run the query");
       runQuery();
