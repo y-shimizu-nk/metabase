@@ -191,8 +191,6 @@
   [driver]
   (@initialized-drivers driver))
 
-(defonce ^:private initialization-lock (Object.))
-
 (defn initialize-if-needed!
   "Initialize a driver by calling executing `(init-fn driver)` if it hasn't yet been initialized. Refer to documentation
   for [[metabase.driver/initialize!]] for a full explanation of what this means."
@@ -205,7 +203,7 @@
     (when-not (initialized? driver)
       ;; if the driver is not yet initialized, acquire an exclusive lock for THIS THREAD to perform initialization to
       ;; make sure no other thread tries to initialize it at the same time
-      (locking initialization-lock
+      (locking clojure.lang.RT/REQUIRE_LOCK
         ;; and once we acquire the lock, check one more time to make sure the driver didn't get initialized by
         ;; whatever thread(s) we were waiting on.
         (when-not (initialized? driver)

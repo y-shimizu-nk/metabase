@@ -196,7 +196,7 @@
   than once."
   []
   (when-not @loaded?
-    (locking loaded?
+    (locking clojure.lang.RT/REQUIRE_LOCK
       (when-not @loaded?
         (load!)
         (reset! loaded? true)))))

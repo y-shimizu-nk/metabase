@@ -63,31 +63,30 @@
 
 ;; atom is nil => rebuild the hierarchy
 
-(def ^:private base-type-hierarchy*
-  (atom nil))
+(def ^:private base-type-hierarchy*      (atom nil))
+(def ^:private effective-type-hierarchy* (atom nil))
+
+(defn- rebuild-hierarchies! []
+  (reset! base-type-hierarchy*
+          (delay
+            (build-hierarchy (for [[strategy base-types] @strategy->allowed-base-types
+                                   base-type             base-types]
+                               [base-type strategy]))))
+  (reset! effective-type-hierarchy*
+          (delay
+            (build-hierarchy (seq @strategy->effective-type)))))
+
+(rebuild-hierarchies!)
 
 (defn base-type-hierarchy
   "The global hierarchy, with coercion strategies added as ancestors of their allowed base type(s)."
   []
-  (when-not @base-type-hierarchy*
-    (locking base-type-hierarchy*
-      (when-not @base-type-hierarchy*
-        (reset! base-type-hierarchy* (build-hierarchy (for [[strategy base-types] @strategy->allowed-base-types
-                                                            base-type             base-types]
-                                                        [base-type strategy]))))))
-  @base-type-hierarchy*)
-
-(def ^:private effective-type-hierarchy*
-  (atom nil))
+  @@base-type-hierarchy*)
 
 (defn effective-type-hierarchy
   "The global hierarchy, with coercion strategies added as children of their resulting effective type."
   []
-  (when-not @effective-type-hierarchy*
-    (locking effective-type-hierarchy*
-      (when-not @effective-type-hierarchy*
-        (reset! effective-type-hierarchy* (build-hierarchy (seq @strategy->effective-type))))))
-  @effective-type-hierarchy*)
+  @@effective-type-hierarchy*)
 
 ;; rebuild coercion hierarchies if the global hierarchy changes
 (add-watch
@@ -96,8 +95,7 @@
  ::rebuild-hierarchies
  (fn [_ _ old new]
    (when-not (= old new)
-     (reset! base-type-hierarchy* nil)
-     (reset! effective-type-hierarchy* nil))))
+     (rebuild-hierarchies!))))
 
 ;; rebuild coercion hierarchies if the type map atoms change
 
@@ -106,11 +104,11 @@
  ::rebuild-hierarchies
  (fn [_ _ old new]
    (when-not (= old new)
-     (reset! base-type-hierarchy* nil))))
+     (rebuild-hierarchies!))))
 
 (add-watch
  strategy->effective-type
  ::rebuild-hierarchies
  (fn [_ _ old new]
    (when-not (= old new)
-     (reset! effective-type-hierarchy* nil))))
+     (rebuild-hierarchies!))))

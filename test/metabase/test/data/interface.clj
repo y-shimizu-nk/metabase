@@ -143,7 +143,7 @@
 
 (defn- load-test-extensions-namespace-if-needed [driver]
   (when-not (contains? @has-loaded-extensions driver)
-    (locking has-loaded-extensions
+    (locking clojure.lang.RT/REQUIRE_LOCK
       (when-not (contains? @has-loaded-extensions driver)
         (u/profile (format "Load %s test extensions" driver)
           (require-driver-test-extensions-ns driver)

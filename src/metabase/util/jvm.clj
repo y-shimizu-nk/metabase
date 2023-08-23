@@ -290,6 +290,8 @@
 (defn do-with-timeout
   "Impl for `with-timeout` macro."
   [timeout-ms f]
+  (assert (not (Thread/holdsLock clojure.lang.RT/REQUIRE_LOCK))
+          "Current thread holds clojure.lang.RT/REQUIRE_LOCK; child thread will not. This will cause deadlocks!")
   (try
     (deref-with-timeout (future-call f) timeout-ms)
     (catch java.util.concurrent.ExecutionException e
@@ -298,4 +300,4 @@
 (defmacro with-timeout
   "Run `body` in a `future` and throw an exception if it fails to complete after `timeout-ms`."
   [timeout-ms & body]
-  `(do-with-timeout ~timeout-ms (fn [] ~@body)))
+  `(do-with-timeout ~timeout-ms (^:once fn* [] ~@body)))

@@ -22,8 +22,6 @@
                                      (str/join "\n" [border body border])
                                      "\n")))))
 
-(def ^:private init-timeout-ms (u/seconds->ms 60))
-
 (def ^:private ^:dynamic *initializing*
   "Collection of components that are being currently initialized by the current thread."
   [])
@@ -35,12 +33,11 @@
     (throw (Exception. (format "Circular initialization dependencies! %s"
                                (str/join " -> " (conj *initializing* step)))))))
 
-(defn- initialize-if-needed!* [step]
+(defn- initialize! [step]
   (try
     (log-init-message step)
     (binding [*initializing* (conj *initializing* step)]
-      (u/with-timeout init-timeout-ms
-        (do-initialization! step)))
+      (do-initialization! step))
     (catch Throwable e
       (log/fatalf e "Error initializing %s" step)
       (when config/is-test?
@@ -60,9 +57,9 @@
           :let [step (keyword step)]]
     (when-not (@initialized step)
       (check-for-circular-deps step)
-      (locking step
+      (locking clojure.lang.RT/REQUIRE_LOCK
         (when-not (@initialized step)
-          (initialize-if-needed!* step)
+          (initialize! step)
           (swap! initialized conj step))))))
 
 (defn initialized?
