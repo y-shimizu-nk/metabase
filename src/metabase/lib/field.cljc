@@ -603,6 +603,7 @@
     #?(:cljs (js/console.log "add-field" query column))
     (case source
       (:source/table-defaults
+       :source/fields
        :source/card
        :source/previous-stage
        :source/expressions
@@ -675,6 +676,7 @@
   (let [source (:lib/source column)]
     (case source
       (:source/table-defaults
+       :source/fields
        :source/breakouts
        :source/aggregations
        :source/expressions
