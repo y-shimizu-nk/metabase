@@ -1364,6 +1364,46 @@
                                       (lib.metadata.calculation/visible-columns query)
                                       (lib.metadata.calculation/returned-columns query)))
 
+(deftest ^:parallel nested-query-join-with-fields-test
+  (testing "a nested query which has an explicit join with :fields"
+    (let [base           (lib/query meta/metadata-provider (meta/table-metadata :orders))
+          join           (-> (lib/join-clause (meta/table-metadata :products))
+                             (lib/with-join-alias "Products")
+                             (lib/with-join-conditions [(lib/= (lib/ref (meta/field-metadata :orders :product-id))
+                                                               (lib/ref (meta/field-metadata :products :id)))])
+                             (lib/with-join-fields [(meta/field-metadata :products :category)]))
+          card           (lib.tu/mock-card (lib/join base -1 join))
+          query          (lib/query (lib.tu/metadata-provider-with-mock-card card) card)
+          order-cols     (for [col (meta/fields :orders)]
+                           (-> (meta/field-metadata :orders col)
+                               (assoc :lib/source :source/card)
+                               (dissoc :id :table-id)))
+          join-cols      [(-> (meta/field-metadata :products :category)
+                              (assoc :lib/source :source/card
+                                     :source-alias "Products")
+                              (dissoc :id :table-id))]
+          imp-users-cols (for [col (meta/fields :people)]
+                           (-> (meta/field-metadata :people col)
+                               (assoc :lib/source :source/implicitly-joinable)))
+          ;; Note that there should NOT be an implicitly-joinable column for Products.CATEGORY, since it's already joined.
+          imp-prod-cols  (for [col (meta/fields :products)
+                               :when (not= col :category)]
+                           (-> (meta/field-metadata :products col)
+                               (assoc :lib/source :source/implicitly-joinable)))
+          sorted         #(sort-by (juxt :name :join-alias :id :table-id) %)
+          selected       (fn [cols] (map #(assoc % :selected? true) cols))]
+      (is (=? (sorted (concat order-cols join-cols))
+              (sorted (lib.metadata.calculation/returned-columns query))))
+      ;; These are the ideal case - the old code is actually worse than this.
+      ;; If we decide to roll with an existing case then this should be made to match that reality.
+      (is (= 1
+             (->> query
+                  lib.metadata.calculation/visible-columns
+                  (filter #(-> % :name (= "CATEGORY")))
+                  count)))
+      #_(is (=? (count (concat (selected order-cols) (selected join-cols) imp-users-cols imp-prod-cols))
+              (count (mark-selected query)))))))
+
 (deftest ^:parallel nested-query-implicit-join-fields-test
   (testing "joining a nested query with another table"
     ;; Use the mock card for :orders, join that with products in the nested query.
