@@ -240,6 +240,7 @@
    {:lib/type        :metadata/card
     :id              id
     :name            name
+    :database-id     (:id (lib.metadata/database query))
     :dataset-query   (lib.convert/->legacy-MBQL query)
     :result-metadata (->> query
                           lib.metadata.calculation/returned-columns

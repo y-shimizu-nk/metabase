@@ -702,4 +702,4 @@
     field-ref    :- ::lib.schema.ref/ref]
    (let [stage   (lib.util/query-stage query stage-number)
          columns (lib.metadata.calculation/visible-columns query stage-number stage)]
-     (lib.equality/closest-matching-metadata field-ref columns))))
+     (lib.equality/closest-matching-metadata query stage-number field-ref columns))))

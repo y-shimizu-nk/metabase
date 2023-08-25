@@ -272,3 +272,32 @@
                                                             :query-filters query-filters
                                                             :matching-filters matching-filters}))
          (first matching-filters))))))
+
+(def ^:private FilterParts
+  [:map
+   [:lib/type [:= :mbql/filter-parts]]
+   [:operator ::lib.schema.filter/operator]
+   [:options ::lib.schema.common/options]
+   [:column [:maybe ColumnWithOperators]]
+   [:args [:sequential :any]]])
+
+(mu/defn filter-parts :- FilterParts
+  "Return the parts of the filter clause `a-filter-clause` in query `query` at stage `stage-number`.
+  Might obsolate [[filter-operator]]."
+  ([query a-filter-clause]
+   (filter-parts query -1 a-filter-clause))
+
+  ([query :- ::lib.schema/query
+    stage-number :- :int
+    a-filter-clause :- ::lib.schema.expression/boolean]
+   (let [[op options first-arg & rest-args] a-filter-clause
+         stage   (lib.util/query-stage query stage-number)
+         columns (lib.metadata.calculation/visible-columns query stage-number stage)
+         col     (lib.equality/closest-matching-metadata query stage-number first-arg columns)]
+     {:lib/type :mbql/filter-parts
+      :operator (clojure.core/or (m/find-first #(clojure.core/= (:short %) op)
+                                               (lib.filter.operator/filter-operators col))
+                                 (lib.filter.operator/operator-def op))
+      :options  options
+      :column   (some-> col add-column-operators)
+      :args     (vec rest-args)})))
