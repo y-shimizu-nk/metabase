@@ -14,6 +14,8 @@
    [metabase.lib.schema.id :as lib.schema.id]
    [metabase.lib.schema.ref :as lib.schema.ref]
    [metabase.lib.util :as lib.util]
+   [metabase.shared.util.i18n :as i18n]
+   [metabase.util.log :as log]
    [metabase.util.malli :as mu]))
 
 (defmulti =
@@ -125,28 +127,112 @@
      (catch #?(:clj Throwable :cljs :default) _
        nil))))
 
+;;; ------------------------------------------------ Squinting -------------------------------------------------------
+;;; When trying to match columns and refs, there are lots of details that might not match up.
+;;; For example, we might have a column with a breakout by `:temporal-unit` in the query, but then try to match a naive
+;;; `[:field {} 12]` against it. That should succeed, but we want to match including the `:temporal-unit` if given.
+;;;
+;;; To implement this, we define a set of "squinting" strategies. I call this "squinting" because we're blurring the
+;;; details more and more until two things look the same.
+;;;
+;;; Squinting at a value returns a lazy sequence of successively more generic versions of the value. Note that many of
+;;; the versions might be the same as their predecessor (eg. if the value has no `:temporal-unit`); that's okay.
+;;; Since we want to squint the "same amount" at many values, trying to find a match, it's important that each sequence
+;;; has the same number of steps.
+(defn- ->ref [ref-or-column]
+  (cond-> ref-or-column
+    (and (map? ref-or-column)
+         (= (:lib/type ref-or-column) :metadata/column)) lib.ref/ref))
+
+(def ^:private squints
+  [;; ignore irrelevant keys from :binning options
+   #(lib.options/update-options % m/update-existing :binning dissoc :metadata-fn :lib/type)
+   ;; ignore namespaced keys
+   update-options-remove-namespaced-keys
+   ;; ignore type info
+   #(lib.options/update-options % dissoc :base-type :effective-type)
+   ;; ignore temporal-unit
+   #(lib.options/update-options % dissoc :temporal-unit)
+   ;; ignore binning
+   #(lib.options/update-options % dissoc :binning)])
+
+(defn- squint-by [xforms ref-or-column]
+  (when ref-or-column
+    (reductions (fn [r f] (f r)) (->ref ref-or-column) xforms)))
+
+(defn- squint-keep-join [ref-or-column]
+  (squint-by squints ref-or-column))
+
+(defn- squint-drop-join [ref-or-column]
+  ;; This tries the full chain of squints with any :join-alias, and if that doesn't match, then we start from the
+  ;; original ref, drop the :join-alias, and then run the full chain of squints again.
+  (when ref-or-column
+    (let [a-ref (->ref ref-or-column)]
+      (concat (squint-keep-join a-ref)
+              (squint-keep-join (lib.options/update-options a-ref dissoc :join-alias))))))
+
+;;; ------------------------------------------------ Matching --------------------------------------------------------
+(defn- match-needle-to-haystack
+  ([squinty-needle squinty-haystack] (match-needle-to-haystack squinty-needle squinty-haystack 0))
+  ([squinty-needle squinty-haystack depth]
+   (when (seq squinty-needle)
+     (let [needle  (first squinty-needle)
+           matches (keep-indexed (fn [i squinty-hay]
+                                   (when (= needle (first squinty-hay))
+                                     i))
+                                 squinty-haystack)]
+       (case (count matches)
+         0 (recur (rest squinty-needle) (map rest squinty-haystack) (inc depth))
+         1 [(first matches) depth]
+         (throw (ex-info (i18n/tru "Ambiguous match for {0}: got {1}" (pr-str needle) (pr-str matches))
+                         {:needle   needle
+                          :haystack (mapv first squinty-haystack)
+                          :matches  (vec matches)})))))))
+
+(defn- lowest-depth
+  "Given a list of [haystack-index [needle-index depth]] pairs, find the one with the lowest depth.
+  If there's more than one pair with that depth, throw an error.
+
+  Returns the `needle-index` with the lowest depth."
+  [pairs]
+  (let [pairs     (map second pairs) ; Drop the unnecessary [haystack-index ...] outer layer.
+        min-depth (reduce (fn [m [_needle-index depth]] (min m depth)) 100 pairs)
+        at-depth  (filter #(= (second %) min-depth) pairs)]
+    (if (= (count at-depth) 1)
+      (ffirst at-depth)
+      ;; TODO: This should be thrown as an exception rather than a warning, but currently there are some ambiguous
+      ;; columns returned in certain cases of nested queries. Eg. Orders joined to Products, then nest that query.
+      ;; Then for each column in Products, `visible-columns` returns two: one with `:source/card`, and one with
+      ;; `:source/implicitly-joinable`. For regular queries we use the IDs to de-dupe them, but the columns from the
+      ;; nested query have no `:id` or `:table-id`.
+      (log/warn  (i18n/tru "Ambiguous match: needles at {0} matched a single haystack value"
+                           (pr-str (map first at-depth)))))))
+
 (defn find-closest-matches-for-refs
-  "For each `needles` (which must be a ref) find the column or ref in `haystack` that it most closely matches. This is
-  meant to power things like [[metabase.lib.breakout/breakoutable-columns]] which are supposed to include
+  "For each of `needles` (which must be a ref) find the column or ref in `haystack` that it most closely matches. This
+  is meant to power things like [[metabase.lib.breakout/breakoutable-columns]] which are supposed to include
   `:breakout-position` for columns that are already present as a breakout; sometimes the column in the breakout does not
-  exactly match what MLv2 would have generated. So try to figure out which column it is referring to.
+  exactly match what MLv2 would have generated. So try to figure out which column it is referring to. The fuzzy matching
+  is powered by the \"squinting\" logic defined in this namespace.
+
+  As a special case, if the input ref has an ID, and 1 or more `haystacks` have the same ID, those are immediately
+  matched.
 
   The `haystack` can be either `MetadataColumns` or refs.
 
   Returns a map with `haystack` values as keys (whether they be columns or refs) and the corresponding index in
   `needles` as values. If for some `needle` there is no match, that index will not appear in the map.
 
+  If there are multiple matches for a `needle` at the same level of \"squinting\", an error is thrown.
+  TODO: Perhaps there are legitimate cases where this will happen? If so, we should add logic to disambiguate matches.
+  (For example, prefer any other `:source/*` over `:source/implicitly-joinable`, if the `needle` has no `:join-alias`.)
+
   `opts` can be used to influence the level of flexibility.
     :keep-join? if truthy, the join information will not be ignored
 
   If you want to check that a single ref exists in a set of columns, call [[find-closest-matching-ref]] instead.
 
-  This first looks for each matching ref with a strict comparison, then in increasingly less-strict comparisons until it
-  finds something that matches. This is mostly to work around bugs like #31482 where MLv1 generated queries with
-  `:field` refs that did not include join aliases even though the Fields came from joined Tables... we still know the
-  Fields are the same if they have the same IDs.
-
-  The four-arity version can also find matches between integer Field ID references like `[:field {} 1]` and
+  The four- and five-arity versions can also find matches between integer Field ID references like `[:field {} 1]` and
   equivalent string column name field literal references like `[:field {} \"bird_type\"]` by resolving Field IDs using
   the `query` and `stage-number`. This is ultimately a hacky workaround for totally busted legacy queries.
 
@@ -166,49 +252,20 @@
   ([needles haystack]
    (find-closest-matches-for-refs needles haystack {}))
   ([needles haystack opts]
-   (loop [xforms      (filter
-                       some?
-                       [ ;; initial xform (applied before any tests) converts any columns into refs
-                        #(cond-> %
-                           (and (map? %)
-                                (= (:lib/type %) :metadata/column)) lib.ref/ref)
-                        ;; ignore irrelevant keys from :binning options
-                        #(lib.options/update-options % m/update-existing :binning dissoc :metadata-fn :lib/type)
-                        ;; ignore namespaced keys
-                        update-options-remove-namespaced-keys
-                        ;; ignore type info
-                        #(lib.options/update-options % dissoc :base-type :effective-type)
-                        ;; ignore temporal-unit
-                        #(lib.options/update-options % dissoc :temporal-unit)
-                        ;; ignore binning
-                        #(lib.options/update-options % dissoc :binning)
-                        ;; ignore join alias
-                        (when-not (:keep-join? opts)
-                          #(lib.options/update-options % dissoc :join-alias))])
-          haystack-xf haystack
-          ;; A map of needles left to find. Keys are indexes, values are the refs to find.
-          ;; Any nil needles are dropped, but their indexes still count. This makes the 4-arity form easy to write.
-          needles     (into {}
-                            (comp (map-indexed vector)
-                                  (filter second))
-                            needles)
-          results     {}]
-     (if (or (empty? needles)
-             (empty? xforms))
-       results
-       (let [xformed          (map (first xforms) haystack-xf)
-             needles          (update-vals needles (first xforms))
-             matches          (into {}
-                                    (keep (fn [[needle-index a-ref]]
-                                            (when-let [match-index (first (keep-indexed #(when (= %2 a-ref) %1) xformed))]
-                                              [(nth haystack match-index) needle-index])))
-                                    needles)
-             finished-needles (set (vals matches))]
-         ;; matches is a map in the same form as results; merge them.
-         (recur (rest xforms)
-                xformed
-                (m/remove-keys finished-needles needles)
-                (merge matches results))))))
+   (let [squint           (if (:keep-join? opts) squint-keep-join squint-drop-join)
+         ;; There's an important performance trade-off here - the lazy transformations for each value in the haystack
+         ;; are kept in memory and reused for each needle, so we avoid repeatedly transforming the haystack.
+         ;; This costs memory while this function is running, but saves a lot of time.
+         squinty-needles  (map squint needles)
+         squinty-haystack (map squint haystack)
+         matches          (keep-indexed (fn [index squinty-needle]
+                                          (when-let [[haystack-index depth] (match-needle-to-haystack squinty-needle squinty-haystack)]
+                                            [haystack-index [index depth]]))
+                                        squinty-needles)
+         match-groups     (-> (group-by first matches)
+                              (update-vals lowest-depth))]
+     ;; A successful match! match-groups is {haystack-index needle-index}, so map the keys to be haystack values.
+     (update-keys match-groups #(nth haystack %))))
 
   ([query stage-number needles haystack]
    (find-closest-matches-for-refs query stage-number needles haystack {}))
@@ -323,5 +380,5 @@
   ([query stage-number cols selected-columns-or-refs opts]
    (when (seq cols)
      (let [selected-refs          (mapv lib.ref/ref selected-columns-or-refs)
-           matching-selected-cols (closest-matches-in-metadata metadata-providerable selected-refs cols)]
+           matching-selected-cols (closest-matches-in-metadata query stage-number selected-refs cols)]
        (mapv #(assoc % :selected? (contains? matching-selected-cols %)) cols)))))

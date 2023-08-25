@@ -630,6 +630,11 @@ describe("scenarios > visualizations > table column settings", () => {
       cy.wait("@dataset");
       visibleColumns().findByText("User → ID").should("exist");
       additionalColumns().findByText("ID").should("not.exist");
+      // Simply scrolling once doesn't bring the column into view reliably.
+      scrollVisualization();
+      cy.wait(200);
+      scrollVisualization();
+      cy.wait(200);
       scrollVisualization();
       visualization().findByText("User → ID").should("exist");
 

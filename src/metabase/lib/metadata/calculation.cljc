@@ -94,6 +94,9 @@
                          :stage-number stage-number}
                         e)))))))
 
+(defmethod display-name-method :dispatch-type/nil [_query _stage-number _x _stage]
+  "")
+
 (defmethod display-name-method :default
   [_query _stage-number x _stage]
   ;; hopefully this is dev-facing only, so not i18n'ed.
@@ -542,7 +545,6 @@
   [query stage-number column-metadatas unique-name-fn]
   (let [existing-table-ids (into #{} (map :table-id) column-metadatas)
         existing-field-ids (into #{} (map :id) column-metadatas)]
-    (prn "EFI" (take 3 column-metadatas))
     (into []
           (comp (filter :fk-target-field-id)
                 (m/distinct-by :fk-target-field-id)

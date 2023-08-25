@@ -204,10 +204,10 @@
     {[:field {} 3] 0
      [:field {} 1] 1}
 
-    [[:field {:base-type :type/Integer} 1]]
-    [[:field {:base-type :type/Number} 1]
-     [:field {:base-type :type/Integer} 1]]
-    {[:field {:base-type :type/Integer} 1] 0}
+    [[:field {:base-type :type/Integer} "foo"]]
+    [[:field {:base-type :type/Number}  "foo"]
+     [:field {:base-type :type/Integer} "foo"]]
+    {[:field {:base-type :type/Integer} "foo"] 0}
 
     [[:field {:join-alias "J"} 1]]
     [[:field {:join-alias "I"} 1]
@@ -218,7 +218,7 @@
     ;; note that the key of the returned map is the *original* haystack value
     [[:field {:base-type :type/Float} 1]]
     [[:field {:base-type :type/Number} 1]
-     [:field {:base-type :type/Integer} 1]]
+     [:field {:base-type :type/Integer} 2]]
     {[:field {:base-type :type/Number} 1] 0}
 
     ;; if no exact match, ignore :join-alias
@@ -271,7 +271,7 @@
     ;; note that the key of the returned map is the *original* haystack value
     [:field {:base-type :type/Float} 1]
     [[:field {:base-type :type/Number} 1]
-     [:field {:base-type :type/Integer} 1]]
+     [:field {:base-type :type/Integer} 2]]
     [:field {:base-type :type/Number} 1]
 
     ;; if no exact match, ignore :join-alias
@@ -352,7 +352,9 @@
               {:name "CREATED_AT", :selected? true}
               {:name "QUANTITY",   :selected? false}]
              (mapv #(select-keys % [:name :selected?])
-                   (lib.equality/mark-selected-columns cols selected)))))))
+                   (lib.equality/mark-selected-columns cols selected))
+             (mapv #(select-keys % [:name :selected?])
+                   (lib.equality/mark-selected-columns query -1 cols selected)))))))
 
 (deftest ^:parallel closest-matching-metadata-test
   (testing "closest-matching-metadata should find metadatas based on matching ID (#31482) (#33453)"
