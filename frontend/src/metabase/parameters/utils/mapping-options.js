@@ -83,6 +83,7 @@ export function getParameterMappingOptions(
   const question = new Question(card, metadata);
   const query = question.query();
   const options = [];
+
   if (question.isDataset()) {
     // treat the dataset/model question like it is already composed so that we can apply
     // dataset/model-specific metadata to the underlying dimension options
@@ -122,6 +123,8 @@ export function getParameterMappingOptions(
         .flatMap(section => buildNativeQuerySectionOptions(section)),
     );
   }
+
+  console.log({options});
 
   return options;
 }

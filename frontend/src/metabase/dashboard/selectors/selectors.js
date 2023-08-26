@@ -280,7 +280,10 @@ export const getParameters = createSelector(
 export const getParameterMappingOptions = createSelector(
   [getMetadata, getEditingParameter, getCard, getDashCard],
   (metadata, parameter, card, dashcard) => {
-    return _getParameterMappingOptions(metadata, parameter, card, dashcard);
+    const res = _getParameterMappingOptions(metadata, parameter, card, dashcard);
+
+    console.log({res})
+    return res;
   },
 );
 

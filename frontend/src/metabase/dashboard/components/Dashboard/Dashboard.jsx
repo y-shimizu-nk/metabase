@@ -156,6 +156,7 @@ class Dashboard extends Component {
       !_.isEqual(prevProps.parameterValues, this.props.parameterValues) ||
       (!prevProps.dashboard && this.props.dashboard)
     ) {
+      console.log(prevProps.parameterValues, this.props.parameterValues);
       this.props.fetchDashboardCardData({ reload: false, clearCache: true });
     }
   }
