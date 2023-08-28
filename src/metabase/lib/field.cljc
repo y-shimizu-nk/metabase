@@ -4,6 +4,7 @@
    [medley.core :as m]
    [metabase.lib.aggregation :as lib.aggregation]
    [metabase.lib.binning :as lib.binning]
+   [metabase.lib.card :as lib.card]
    [metabase.lib.equality :as lib.equality]
    [metabase.lib.expression :as lib.expression]
    [metabase.lib.join :as lib.join]
@@ -16,7 +17,6 @@
    [metabase.lib.remove-replace :as lib.remove-replace]
    [metabase.lib.schema :as lib.schema]
    [metabase.lib.schema.common :as lib.schema.common]
-   [metabase.lib.schema.id :as lib.schema.id]
    [metabase.lib.schema.ref :as lib.schema.ref]
    [metabase.lib.schema.temporal-bucketing
     :as lib.schema.temporal-bucketing]
