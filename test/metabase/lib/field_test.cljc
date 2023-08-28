@@ -1394,15 +1394,26 @@
           selected       (fn [cols] (map #(assoc % :selected? true) cols))]
       (is (=? (sorted (concat order-cols join-cols))
               (sorted (lib.metadata.calculation/returned-columns query))))
-      ;; These are the ideal case - the old code is actually worse than this.
-      ;; If we decide to roll with an existing case then this should be made to match that reality.
-      (is (= 1
-             (->> query
-                  lib.metadata.calculation/visible-columns
-                  (filter #(-> % :name (= "CATEGORY")))
-                  count)))
-      #_(is (=? (count (concat (selected order-cols) (selected join-cols) imp-users-cols imp-prod-cols))
-              (count (mark-selected query)))))))
+      (testing "visible-columns returns two copies of Product.CATEGORY"
+        (let [category-cols (filter #(-> % :name (= "CATEGORY"))
+                                    (mark-selected query))]
+          (testing "one from the inner query's join (selected) and one implicitly joined (not selected)"
+            (is (=? [{:name                     "CATEGORY"
+                      :lib/source               :source/card
+                      :lib/card-id              1
+                      :lib/source-column-alias  "CATEGORY"
+                      :lib/desired-column-alias "Products__CATEGORY"
+                      :display-name             "Category"
+                      :selected?                true}
+                     {:name                     "CATEGORY"
+                      :lib/source               :source/implicitly-joinable
+                      :lib/source-column-alias  "CATEGORY"
+                      :id                       (meta/id :products :category)
+                      :table-id                 (meta/id :products)
+                      :lib/desired-column-alias "CATEGORY_2"
+                      :display-name             "Category"
+                      :selected?                false}]
+                    category-cols))))))))
 
 (deftest ^:parallel nested-query-implicit-join-fields-test
   (testing "joining a nested query with another table"

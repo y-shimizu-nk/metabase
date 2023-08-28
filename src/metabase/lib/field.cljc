@@ -410,7 +410,7 @@
         options           (merge {:lib/uuid       (str (random-uuid))
                                   :base-type      (:base-type metadata)
                                   :effective-type (column-metadata-effective-type metadata)}
-                                 (when-let [join-alias (lib.join/current-join-alias metadata)]
+                                 (when-let [join-alias (lib.join.util/current-join-alias metadata)]
                                    {:join-alias join-alias})
                                  (when-let [temporal-unit (::temporal-unit metadata)]
                                    {:temporal-unit temporal-unit})
@@ -508,7 +508,7 @@
        (mapv (fn [col]
                (assoc col :selected? true))
              visible-columns)
-       (lib.equality/mark-selected-columns visible-columns selected-fields)))))
+       (lib.equality/mark-selected-columns query stage-number visible-columns selected-fields)))))
 
 (mu/defn field-id :- [:maybe ::lib.schema.common/int-greater-than-or-equal-to-zero]
   "Find the field id for something or nil."

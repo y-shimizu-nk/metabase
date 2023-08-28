@@ -543,8 +543,7 @@
 
   Does not include columns that would be implicitly joinable via multiple hops."
   [query stage-number column-metadatas unique-name-fn]
-  (let [existing-table-ids (into #{} (map :table-id) column-metadatas)
-        existing-field-ids (into #{} (map :id) column-metadatas)]
+  (let [existing-table-ids (into #{} (map :table-id) column-metadatas)]
     (into []
           (comp (filter :fk-target-field-id)
                 (m/distinct-by :fk-target-field-id)
@@ -553,7 +552,6 @@
                            (assoc ::source-field-id source-field-id))))
                 (remove #(contains? existing-table-ids (:table-id %)))
                 (m/distinct-by :table-id)
-                (remove #(contains? existing-field-ids (:id %)))
                 (mapcat (fn [{:keys [table-id], ::keys [source-field-id]}]
                           (let [table-metadata (lib.metadata/table query table-id)
                                 options        {:unique-name-fn               unique-name-fn

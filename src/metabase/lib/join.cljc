@@ -464,7 +464,7 @@
           (let [bare-lhs (lib.options/update-options lhs dissoc :join-alias)
                 bare-rhs (lib.options/update-options rhs dissoc :join-alias)]
             (if (and (nil? (lib.equality/closest-matching-metadata query stage-number bare-lhs home-cols))
-                     (lib.equality/index-of-closest-matching-metadata query stage-number bare-rhs home-cols))
+                     (lib.equality/closest-matching-metadata query stage-number bare-rhs home-cols))
               [op op-opts lhs bare-rhs]
               [op op-opts bare-lhs rhs]))
 

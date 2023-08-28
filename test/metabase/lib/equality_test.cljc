@@ -290,13 +290,14 @@
   (is (= {[:field {} "CATEGORY"] 0
           [:field {} "ID"]       1}
          (lib.equality/find-closest-matches-for-refs
-          (lib/query meta/metadata-provider (meta/table-metadata :products))
-          -1
+           (lib/query meta/metadata-provider (meta/table-metadata :products))
+           -1
           [[:field {} (meta/id :products :category)]
            [:field {} "ID"]
            [:field {} "NAME"]]
           [[:field {} "ID"]
-           [:field {} "CATEGORY"]]))))
+           [:field {} "CATEGORY"]]
+          {}))))
 
 (deftest ^:parallel find-closest-matching-ref-4-arity-test
   (is (= [:field {} "CATEGORY"]
@@ -375,5 +376,6 @@
         (is (=? [:field {} "NAME"]
                 (lib.equality/find-closest-matching-ref query -1 a-ref refs))))
       (testing "... closest-matching-metadata finds the correct metadata, categories.name!!!"
-        (is (= 7
-               (lib.equality/closest-matching-metadata a-ref cols)))))))
+        (is (= (nth cols 7)
+               (lib.equality/closest-matching-metadata a-ref cols)
+               (lib.equality/closest-matching-metadata query -1 a-ref cols)))))))

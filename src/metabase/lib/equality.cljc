@@ -14,6 +14,7 @@
    [metabase.lib.schema.id :as lib.schema.id]
    [metabase.lib.schema.ref :as lib.schema.ref]
    [metabase.lib.util :as lib.util]
+   [metabase.mbql.util.match :as mbql.u.match]
    [metabase.shared.util.i18n :as i18n]
    [metabase.util.log :as log]
    [metabase.util.malli :as mu]))
@@ -245,10 +246,9 @@
 
   IMPORTANT!
 
-  When trying to find the matching ref for a sequence of metadatas, prefer [[index-of-closest-matching-metadata]]
-  or [[closest-matching-metadata]] instead, which are less
-  broken (see [[metabase.lib.equality-test/index-of-closest-matching-metadata-test]]) and is slightly more performant,
-  since it converts metadatas to refs in a lazy fashion."
+  When trying to find the matching ref for a sequence of metadatas, prefer [[closest-matching-metadata]] instead, which
+  is less broken (see [[metabase.lib.equality-test/closest-matching-metadata-test]]) and slightly more performant, since
+  it converts metadatas to refs in a lazy fashion."
   ([needles haystack]
    (find-closest-matches-for-refs needles haystack {}))
   ([needles haystack opts]
@@ -310,57 +310,139 @@
         keys
         first)))
 
-(mu/defn index-of-closest-matching-metadata :- [:maybe ::lib.schema.common/int-greater-than-or-equal-to-zero]
-  "Like [[find-closest-matching-ref]], but finds the closest match for `a-ref` from a sequence of Column `metadatas`
-  rather than a sequence of refs. This allows us to do more sophisticated fuzzy matching
-  than [[find-closest-matching-ref]], because column metadatas inherently have more information than they do after
-  they are converted to refs.
+(defn- annotate-index [xs]
+  (map-indexed (fn [i x]
+                 (when x
+                   (vary-meta x assoc ::index i)))
+               xs))
 
-  If a match is found, this returns the index of the matching metadata in `metadatas`. Otherwise returns `nil.` If you
-  want the metadata instead, use [[closest-matching-metadata]]."
-  [a-ref     :- ::lib.schema.ref/ref
-   metadatas :- [:maybe [:sequential lib.metadata/ColumnMetadata]]]
-  (when (seq metadatas)
-    ;; create refs in a lazy fashion, e.g. if the very first metadata ends up matching we don't need to create refs
-    ;; for all of the other metadatas.
-    (letfn [(index-with-ref-fn [ref-fn]
-              ;; store the associated index in metadata attached to the created ref.
-              (let [refs (for [[i metadata] (m/indexed metadatas)]
-                           (vary-meta (ref-fn metadata) assoc ::index i))]
-                (when-let [matching-ref (find-closest-matching-ref a-ref refs)]
-                  (::index (meta matching-ref)))))]
-      (or
-       ;; attempt to find a matching ref using the same logic as [[find-closest-matching-ref]] ...
-       (index-with-ref-fn lib.ref/ref)
-       ;; if that fails, and we're comparing a "Field ID" ref like
-       ;;
-       ;;    [:field {} 1]
-       ;;
-       ;; then try again forcing creation of Field ID refs for all of the metadatas. This way we can match
-       ;; things where the FE incorrectly used a Field ID ref even tho we were expecting a nominal :field
-       ;; literal ref like
-       ;;
-       ;;    [:field {} "my_field"]
-       (when (field-id-ref? a-ref)
-         ;; force creation of a Field ID ref by giving it a source that will make the ref creation code
-         ;; treat this as coming from a source table. This only makes sense for metadatas that have an
-         ;; associated Field `:id`, so only do it for those ones.
-         (index-with-ref-fn (fn [metadata]
-                              (lib.ref/ref
-                               (cond-> metadata
-                                 (:id metadata) (assoc :lib/source :source/table-defaults))))))))))
+(defn- cascading-matches
+  "For each of `ref-fns`, this does the following:
+  - Map `(first ref-fns)` over the `haystack-metadatas`.
+  - Annotate these results with metadata to map them back to the original `haystack-metadatas`.
+  - Call [[find-closest-matches-for-refs]] with `needles` and this list of refs.
+  - Map the results back to use the original `haystack-metadatas` as keys, rather than the refs.
+  - Merge the results right-to-left, so that **earlier matches win**.
+  - Remove any matched `needles` and `haystack-metadatas` from the inputs.
+  - If both inputs are nonempty, continue to the next `ref-fns`, if any."
+  [needles haystack-metadatas opts ref-fns]
+  (let [original-needles (annotate-index needles)]
+    (loop [current-needles         original-needles
+           current-haystack        haystack-metadatas
+           [ref-fn & more-ref-fns] ref-fns
+           result                  {}]
+      (cond
+        (or (empty? current-needles)
+            (empty? current-haystack)
+            (nil? ref-fn))            result
+        (nil? ref-fn)                 (recur current-needles current-haystack more-ref-fns result)
+        :else
+        (let [haystack-ref->col  (m/index-by ref-fn current-haystack)
+              matches            (-> (find-closest-matches-for-refs current-needles (keys haystack-ref->col) opts)
+                                     ;; This returns a map {haystack-ref index-in-current-needles}.
+                                     ;; We want to adjust both keys and vals to
+                                     ;; {haystack-metadata index-in-original-needles}
+                                     (update-vals #(->> % (nth current-needles) meta ::index))
+                                     (update-keys haystack-ref->col))
+              matched-needles    (set (vals matches))]
+          (recur (remove #(matched-needles (::index (meta %))) current-needles)
+                 ;; Replace the matched haystacks with nil so they can't match again.
+                 (for [metadata current-haystack]
+                   (when-not (contains? matches metadata)
+                     metadata))
+                 more-ref-fns
+                 ;; TODO: Merging in this direction gives priority to the earliest match.
+                 ;; Perhaps any collision should be an error?
+                 (merge matches result)))))))
+
+(mu/defn closest-matches-in-metadata :- [:map-of
+                                         lib.metadata/ColumnMetadata
+                                         ::lib.schema.common/int-greater-than-or-equal-to-zero]
+  "Like [[find-closest-matches-for-refs]], but finds the closest match for each element of `needles` from a haystack of
+  Column `metadatas` rather than a haystack of refs. This allows us to do more sophisticated fuzzy matching than
+  [[find-closest-matches-for-refs]], because column metadatas inherently have more information than they do after they
+  are converted to refs.
+
+  Returns a map `{column-metadata index-in-needles}` for each successful match. If nothing is found that matches a
+  `needle`, no entry for it appears in the map.
+
+  If you only have a single `needle` ref to look up, use [[closest-matching-metadata]]."
+  ([needles haystack-metadatas]
+   (closest-matches-in-metadata needles haystack-metadatas {}))
+
+  ([needles haystack-metadatas opts]
+   (when (seq haystack-metadatas)
+     ;; The matching is done in two passes: first as plain refs, second by forcing ID refs.
+     ;; Each of these returns a map of `{^{::index i} haystack-ref needle-index}`. Those haystack values which match
+     ;; are removed between stages.
+     (cascading-matches
+       needles haystack-metadatas opts
+       [;; The first pass attempts to match the refs using the regular [[find-closest-matches-for-refs]].
+        lib.ref/ref
+        ;; If that fails to match some needles, and there's at least some needles which are "Field ID" refs like
+        ;;
+        ;;    [:field {} 1]
+        ;;
+        ;; then try again, forcing creation of Field ID refs for all of the metadatas. This way we can match
+        ;; things where the FE incorrectly used a Field ID ref even tho we were expecting a nominal :field
+        ;; literal ref like
+        ;;
+        ;;    [:field {} "my_field"]
+        (when (some field-id-ref? needles)
+          ;; Force creation of a Field ID ref by giving it a `:lib/source` that will make the ref creation code
+          ;; treat it as coming from a source table. This only makes sense for metadatas that have an associated
+          ;; Field `:id`, so others are left as-is.
+          (fn [metadata]
+            (cond-> metadata
+              (:id metadata) (assoc :lib/source :source/table-defaults)
+              metadata       lib.ref/ref)))])))
+
+  ([query stage-number needles haystack-metadatas]
+   (closest-matches-in-metadata query stage-number needles haystack-metadatas {}))
+
+  ([query                 :- [:maybe ::lib.schema/query]
+    stage-number          :- :int
+    needles               :- [:sequential [:maybe ::lib.schema.ref/ref]]
+    haystack-metadatas    :- [:sequential lib.metadata/ColumnMetadata]
+    opts                  :- [:map [:keep-join? {:optional true} :boolean]]]
+   ;; This could be more efficient if the second pass were run on the un-matched subset, like cascading-matches.
+   (let [basic   (closest-matches-in-metadata needles haystack-metadatas opts)
+         ;; In case that fails, we need to fall back and try matching any integer IDs by name like the four-arity
+         ;; version of [[find-closest-matching-ref]].
+         by-name (when (and query
+                            (some field-id-ref? needles))
+                   (closest-matches-in-metadata
+                     (for [[_field opts field-id] needles]
+                       (when (pos-int? field-id)
+                         (lib.ref/ref (resolve-field-id query stage-number field-id))))
+                     haystack-metadatas))]
+     ;; Prefer the more precise integer ID matches over the name-based ones.
+     (merge by-name basic))))
 
 (mu/defn closest-matching-metadata :- [:maybe lib.metadata/ColumnMetadata]
   "Like [[find-closest-matching-ref]], but finds the closest match for `a-ref` from a sequence of Column `metadatas`
   rather than a sequence of refs. See [[index-of-closet-matching-metadata]] for more info."
-  [a-ref     :- ::lib.schema.ref/ref
-   metadatas :- [:maybe [:sequential lib.metadata/ColumnMetadata]]]
-  (when-let [i (index-of-closest-matching-metadata a-ref metadatas)]
-    (nth metadatas i)))
+  ([a-ref metadatas]
+   (closest-matching-metadata a-ref metadatas {}))
+
+  ([a-ref metadatas opts]
+   (closest-matching-metadata nil -1 a-ref metadatas opts))
+
+  ([query stage-number a-ref metadatas]
+   (closest-matching-metadata query stage-number a-ref metadatas {}))
+
+  ([query                 :- [:maybe ::lib.schema/query]
+    stage-number          :- :int
+    a-ref                 :- ::lib.schema.ref/ref
+    metadatas             :- [:sequential lib.metadata/ColumnMetadata]
+    opts                  :- [:map [:keep-join? {:optional true} :boolean]]]
+   (->> (closest-matches-in-metadata query stage-number [a-ref] metadatas opts)
+        keys
+        first)))
 
 (defn mark-selected-columns
   "Mark `columns` as `:selected?` if they appear in `selected-columns-or-refs`. Uses fuzzy matching
-  with [[index-of-closest-matching-metadata]].
+  with [[closest-matching-metadata]].
 
   Example usage:
 
@@ -380,5 +462,5 @@
   ([query stage-number cols selected-columns-or-refs opts]
    (when (seq cols)
      (let [selected-refs          (mapv lib.ref/ref selected-columns-or-refs)
-           matching-selected-cols (closest-matches-in-metadata query stage-number selected-refs cols)]
+           matching-selected-cols (closest-matches-in-metadata query stage-number selected-refs cols opts)]
        (mapv #(assoc % :selected? (contains? matching-selected-cols %)) cols)))))
