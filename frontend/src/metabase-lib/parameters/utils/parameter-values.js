@@ -49,14 +49,21 @@ export function normalizeParameters(parameters) {
     }));
 }
 
+export const PULSE_PARAM_EMPTY = null;
+export const PULSE_PARAM_USE_DEFAULT = undefined;
+
 export function isParameterValueEmpty(value) {
-  return value == null || (Array.isArray(value) && value.length === 0);
+  return (
+    value === PULSE_PARAM_EMPTY || (Array.isArray(value) && value.length === 0)
+  );
 }
 
 export function normalizeParameterValue(type, value) {
   const fieldType = getParameterType(type);
-  if (isParameterValueEmpty(value)) {
-    return null;
+  if (value === PULSE_PARAM_USE_DEFAULT) {
+    return PULSE_PARAM_USE_DEFAULT;
+  } else if (isParameterValueEmpty(value)) {
+    return PULSE_PARAM_EMPTY;
   } else if (["string", "number"].includes(fieldType)) {
     return [].concat(value);
   } else {
