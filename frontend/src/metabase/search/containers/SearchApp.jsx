@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import PropTypes from "prop-types";
 
 import { jt, t } from "ttag";
 
 import _ from "underscore";
+import { push } from "react-router-redux";
 import Search from "metabase/entities/search";
 
 import Card from "metabase/components/Card";
@@ -22,6 +23,7 @@ import { PAGE_SIZE } from "metabase/search/containers/constants";
 import { SearchResult } from "metabase/search/components/SearchResult";
 import { SearchFilterKeys } from "metabase/search/constants";
 import { SearchFilterSidebar } from "metabase/search/components/SearchFilterSidebar/SearchFilterSidebar";
+import { useDispatch } from "metabase/lib/redux";
 import {
   SearchBody,
   SearchControls,
@@ -32,6 +34,8 @@ import {
 } from "./SearchApp.styled";
 
 export default function SearchApp({ location }) {
+  const dispatch = useDispatch();
+
   const { handleNextPage, handlePreviousPage, page } = usePagination();
 
   const searchText = useMemo(
@@ -39,25 +43,36 @@ export default function SearchApp({ location }) {
     [location],
   );
 
-  const [searchFilters, setSearchFilters] = useState(
-    getFiltersFromLocation(location),
+  const searchFilters = useMemo(
+    () => getFiltersFromLocation(location),
+    [location],
   );
 
-  const [selectedSidebarType, setSelectedSidebarType] = useState(null);
+  const onChangeLocation = useCallback(
+    nextLocation => dispatch(push(nextLocation)),
+    [dispatch],
+  );
 
-  useEffect(() => {
-    if (location.search) {
-      setSelectedSidebarType(null);
-    }
-  }, [location.search]);
+  const onFilterChange = useCallback(
+    newFilters => {
+      onChangeLocation({
+        pathname: "search",
+        query: { q: searchText.trim(), ...newFilters },
+      });
+    },
+    [onChangeLocation, searchText],
+  );
 
-  const query = {
-    q: searchText,
-    ..._.omit(searchFilters, SearchFilterKeys.Type),
-    models: selectedSidebarType ?? searchFilters[SearchFilterKeys.Type],
-    limit: PAGE_SIZE,
-    offset: PAGE_SIZE * page,
-  };
+  const query = useMemo(
+    () => ({
+      q: searchText,
+      ..._.omit(searchFilters, SearchFilterKeys.Type),
+      models: searchFilters[SearchFilterKeys.Type] ?? undefined,
+      limit: PAGE_SIZE,
+      offset: PAGE_SIZE * page,
+    }),
+    [page, searchFilters, searchText],
+  );
 
   return (
     <SearchRoot data-testid="search-app">
@@ -87,7 +102,7 @@ export default function SearchApp({ location }) {
               <SearchControls>
                 <SearchFilterSidebar
                   value={searchFilters}
-                  onChangeFilters={setSearchFilters}
+                  onChangeFilters={onFilterChange}
                 />
               </SearchControls>
             </SearchBody>

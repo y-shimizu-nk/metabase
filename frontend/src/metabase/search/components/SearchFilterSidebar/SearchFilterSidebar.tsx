@@ -25,54 +25,31 @@ export const SearchFilterSidebar = ({
   value: SearchFilters;
   onChangeFilters: (filters: SearchFilters) => void;
 }) => {
-  const [output, setOutput] = useState<SearchFilters>(value);
-
   const onOutputChange = (
     key: FilterTypeKeys,
     val: SearchFilterPropTypes[FilterTypeKeys],
   ) => {
     if (!val || val.length === 0) {
-      setOutput(_.omit(output, key));
+      onChangeFilters(_.omit(value, key));
     } else {
-      setOutput({
-        ...output,
+      onChangeFilters({
+        ...value,
         [key]: val,
       });
     }
   };
 
-  useEffect(() => {
-    setOutput(value);
-  }, [value]);
-
-  const clearFilters = () => {
-    onChangeFilters({});
+  const getFilter = (key: FilterTypeKeys) => {
+    const Filter = filterMap[key];
+    return (
+      <Filter
+        key={key}
+        data-testid={`${key}-search-filter`}
+        value={value[key]}
+        onChange={value => onOutputChange(key, value)}
+      />
+    );
   };
 
-  const applyFilters = () => {
-    onChangeFilters(output);
-  };
-
-  // we can use this field to control which filters are available
-  // - we can enable the 'verified' filter here
-  const availableFilters: FilterTypeKeys[] = useMemo(() => {
-    return [SearchFilterKeys.Type];
-  }, []);
-
-  return (
-    <div>
-      {/*{availableFilters.map(key => {*/}
-      {/*  const Filter = filterMap[key];*/}
-      {/*  return (*/}
-      {/*    <Filter*/}
-      {/*      key={key}*/}
-      {/*      data-testid={`${key}-search-filter`}*/}
-      {/*      value={output[key]}*/}
-      {/*      onChange={value => onOutputChange(key, value)}*/}
-      {/*    />*/}
-      {/*  );*/}
-      {/*})}*/}
-      Under construction.
-    </div>
-  );
+  return <Flex direction="column">{getFilter(SearchFilterKeys.Type)}</Flex>;
 };
