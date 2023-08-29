@@ -182,13 +182,14 @@
                                    (when (= needle (first squinty-hay))
                                      i))
                                  squinty-haystack)]
-       (case (count matches)
-         0 (recur (rest squinty-needle) (map rest squinty-haystack) (inc depth))
-         1 [(first matches) depth]
-         (throw (ex-info (i18n/tru "Ambiguous match for {0}: got {1}" (pr-str needle) (pr-str matches))
-                         {:needle   needle
-                          :haystack (mapv first squinty-haystack)
-                          :matches  (vec matches)})))))))
+       (if (empty? matches)
+         (recur (rest squinty-needle) (map rest squinty-haystack) (inc depth))
+         (do
+           (log/warn (i18n/tru "Ambiguous match for {0}: got {1}" (pr-str needle) (pr-str matches))
+                     {:needle   needle
+                      :haystack (mapv first squinty-haystack)
+                      :matches  (vec matches)})
+           [(first matches) depth]))))))
 
 (defn- lowest-depth
   "Given a list of [haystack-index [needle-index depth]] pairs, find the one with the lowest depth.

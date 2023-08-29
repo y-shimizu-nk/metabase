@@ -544,7 +544,6 @@
                             (every? (comp integer? last) field-refs))
                      (lib.equality/find-closest-matching-ref column-ref field-refs match-opts)
                      (lib.equality/find-closest-matching-ref populated stage-number column-ref field-refs match-opts))]
-    #?(:cljs (js/console.log "include-field" column-ref field-refs match-ref))
     (if (and match-ref
              (or (string? (last column-ref))
                  (integer? (last match-ref))))
@@ -600,7 +599,6 @@
    column       :- lib.metadata.calculation/ColumnMetadataWithSource]
   (let [stage  (lib.util/query-stage query stage-number)
         source (:lib/source column)]
-    #?(:cljs (js/console.log "add-field" query column))
     (case source
       (:source/table-defaults
        :source/fields

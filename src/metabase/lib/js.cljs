@@ -494,10 +494,9 @@
                         :include-implicitly-joinable? (gobj/get js-options "includeImplicitlyJoinable" true)}
         stage          (lib.util/query-stage a-query stage-number)
         vis-columns    (lib.metadata.calculation/visible-columns a-query stage-number stage options)
-        ret-columns    (lib.metadata.calculation/returned-columns a-query stage-number stage)
-        selected       (lib.equality/mark-selected-columns vis-columns ret-columns {:keep-join? true})]
-    (js/console.log "opts" options "vis" vis-columns "ret" ret-columns "result" selected)
-    (to-array selected)))
+        ret-columns    (lib.metadata.calculation/returned-columns a-query stage-number stage)]
+    (to-array (lib.equality/mark-selected-columns
+                a-query stage-number vis-columns ret-columns {:keep-join? true}))))
 
 (defn ^:export legacy-field-ref
   "Given a column metadata from eg. [[fieldable-columns]], return it as a legacy JSON field ref."
