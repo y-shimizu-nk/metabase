@@ -236,10 +236,10 @@
   "Given a `query`, returns a mock card with that query. Includes `:result-metadata` from calling
   [[metabase.lib.metadata.calculation/returned-columns]]."
   ([query] (mock-card query 1 "Mock card"))
-  ([query id name]
+  ([query id title]
    {:lib/type        :metadata/card
     :id              id
-    :name            name
+    :name            title
     :database-id     (:id (lib.metadata/database query))
     :dataset-query   (lib.convert/->legacy-MBQL query)
     :result-metadata (->> query

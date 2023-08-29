@@ -1,6 +1,5 @@
 (ns metabase.lib.order-by
   (:require
-   [medley.core :as m]
    [metabase.lib.aggregation :as lib.aggregation]
    [metabase.lib.breakout :as lib.breakout]
    [metabase.lib.dispatch :as lib.dispatch]

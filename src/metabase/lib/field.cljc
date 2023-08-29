@@ -555,19 +555,10 @@
   (let [column-ref   (lib.ref/ref column)
         [join field] (first (for [join  (lib.join/joins query stage-number)
                                   :let [joinables (lib.join/joinable-columns query stage-number join)
-                                        field (or (lib.equality/closest-matching-metadata
-                                                   query stage-number column-ref
-                                                   joinables
-                                                   {:keep-join? true})
-                                                  ;; TODO: Remove this if it's really not needed anymore.
-                                                  ;; Sometimes we have to resolve a column marked as coming from a join.
-                                                  ;; Here we try to match with the joinable columns ignoring the diference
-                                                  ;; between the sources.
-                                                  #_(lib.equality/find-closest-matching-ref
-                                                   query stage-number column-ref
-                                                   (mapv #(assoc % :lib/source (:lib/source column))
-                                                         joinables)
-                                                   {:keep-join? true}))]
+                                        field     (lib.equality/closest-matching-metadata
+                                                    query stage-number column-ref
+                                                    joinables
+                                                    {:keep-join? true})]
                                   :when field]
                               [join field]))
         join-fields  (lib.join/join-fields join)]

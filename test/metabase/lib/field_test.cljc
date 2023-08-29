@@ -1382,16 +1382,7 @@
                               (assoc :lib/source :source/card
                                      :source-alias "Products")
                               (dissoc :id :table-id))]
-          imp-users-cols (for [col (meta/fields :people)]
-                           (-> (meta/field-metadata :people col)
-                               (assoc :lib/source :source/implicitly-joinable)))
-          ;; Note that there should NOT be an implicitly-joinable column for Products.CATEGORY, since it's already joined.
-          imp-prod-cols  (for [col (meta/fields :products)
-                               :when (not= col :category)]
-                           (-> (meta/field-metadata :products col)
-                               (assoc :lib/source :source/implicitly-joinable)))
-          sorted         #(sort-by (juxt :name :join-alias :id :table-id) %)
-          selected       (fn [cols] (map #(assoc % :selected? true) cols))]
+          sorted         #(sort-by (juxt :name :join-alias :id :table-id) %)]
       (is (=? (sorted (concat order-cols join-cols))
               (sorted (lib.metadata.calculation/returned-columns query))))
       (testing "visible-columns returns two copies of Product.CATEGORY"

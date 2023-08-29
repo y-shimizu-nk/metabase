@@ -413,10 +413,11 @@
          by-name (when (and query
                             (some field-id-ref? needles))
                    (closest-matches-in-metadata
-                     (for [[_field opts field-id] needles]
+                     (for [[_field _opts field-id] needles]
                        (when (pos-int? field-id)
                          (lib.ref/ref (resolve-field-id query stage-number field-id))))
-                     haystack-metadatas))]
+                     haystack-metadatas
+                     opts))]
      ;; Prefer the more precise integer ID matches over the name-based ones.
      (merge by-name basic))))
 
