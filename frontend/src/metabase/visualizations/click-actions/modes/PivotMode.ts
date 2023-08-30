@@ -5,7 +5,7 @@ import { DefaultMode } from "./DefaultMode";
 export const PivotMode: QueryClickActionsMode = {
   name: "pivot",
   clickActions: [
-    ...(DefaultMode.clickActions || []),
+    ...DefaultMode.clickActions,
     getPivotDrill({ withLocation: false }),
   ],
 };

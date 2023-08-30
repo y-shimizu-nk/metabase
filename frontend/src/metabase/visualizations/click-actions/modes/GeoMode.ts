@@ -5,7 +5,7 @@ import { DefaultMode } from "./DefaultMode";
 export const GeoMode: QueryClickActionsMode = {
   name: "geo",
   clickActions: [
-    ...(DefaultMode.clickActions || []),
+    ...DefaultMode.clickActions,
     getPivotDrill({ withLocation: false }),
   ],
 };

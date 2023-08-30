@@ -4,5 +4,5 @@ import { DefaultMode } from "./DefaultMode";
 
 export const MetricMode: QueryClickActionsMode = {
   name: "metric",
-  clickActions: [...(DefaultMode.clickActions || []), PivotDrill],
+  clickActions: [...DefaultMode.clickActions, PivotDrill],
 };
