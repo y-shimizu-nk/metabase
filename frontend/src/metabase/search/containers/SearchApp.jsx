@@ -27,7 +27,6 @@ import { useDispatch } from "metabase/lib/redux";
 import {
   SearchBody,
   SearchControls,
-  SearchEmptyState,
   SearchHeader,
   SearchMain,
   SearchRoot,
@@ -82,42 +81,42 @@ export default function SearchApp({ location }) {
         </SearchHeader>
       )}
       <Search.ListLoader query={query} wrapped>
-        {({ list, metadata }) =>
-          list.length > 0 ? (
-            <SearchBody>
-              <SearchMain>
-                <SearchResultSection items={list} />
-                <Flex justify="flex-end" align="center" my="1rem">
-                  <PaginationControls
-                    showTotal
-                    pageSize={PAGE_SIZE}
-                    page={page}
-                    itemsLength={list.length}
-                    total={metadata.total}
-                    onNextPage={handleNextPage}
-                    onPreviousPage={handlePreviousPage}
+        {({ list, metadata }) => (
+          <SearchBody>
+            <SearchMain>
+              {list.length > 0 ? (
+                <>
+                  <SearchResultSection items={list} />
+                  <Flex justify="flex-end" align="center" my="1rem">
+                    <PaginationControls
+                      showTotal
+                      pageSize={PAGE_SIZE}
+                      page={page}
+                      itemsLength={list.length}
+                      total={metadata.total}
+                      onNextPage={handleNextPage}
+                      onPreviousPage={handlePreviousPage}
+                    />
+                  </Flex>
+                </>
+              ) : (
+                <Card>
+                  <EmptyState
+                    title={t`Didn't find anything`}
+                    message={t`There weren't any results for your search.`}
+                    illustrationElement={<img src={NoResults} />}
                   />
-                </Flex>
-              </SearchMain>
-              <SearchControls>
-                <SearchFilterSidebar
-                  value={searchFilters}
-                  onChangeFilters={onFilterChange}
-                />
-              </SearchControls>
-            </SearchBody>
-          ) : (
-            <SearchEmptyState>
-              <Card>
-                <EmptyState
-                  title={t`Didn't find anything`}
-                  message={t`There weren't any results for your search.`}
-                  illustrationElement={<img src={NoResults} />}
-                />
-              </Card>
-            </SearchEmptyState>
-          )
-        }
+                </Card>
+              )}
+            </SearchMain>
+            <SearchControls>
+              <SearchFilterSidebar
+                value={searchFilters}
+                onChangeFilters={onFilterChange}
+              />
+            </SearchControls>
+          </SearchBody>
+        )}
       </Search.ListLoader>
     </SearchRoot>
   );
