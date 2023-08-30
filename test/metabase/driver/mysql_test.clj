@@ -679,3 +679,29 @@
                             "REVOKE ALL PRIVILEGES ON `dotted.schema` FROM 'privilege_rows_test_example_role'@'localhost';"
                             "DROP USER 'privilege_rows_test_example_role'@'localhost';"]]
                 (jdbc/execute! conn-spec stmt)))))))))
+
+(deftest parse-grant-test
+  (is (= {:type       ::mysql/privileges
+          :privileges #{"select" "insert" "update" "delete"}
+          :object-type :database
+          :object-name "`test-data`.*"}
+         (mysql/parse-grant "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, SELECT (id) ON `test-data`.* TO 'metabase'@'localhost' WITH GRANT OPTION")))
+  (is (= {:type       ::mysql/privileges
+          :privileges #{"select" "insert" "update" "delete"}
+          :object-type :database
+          :object-name "`test-data`.*"}
+         (mysql/parse-grant "GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, SELECT (id) ON `test-data`.* TO 'metabase'@'localhost' WITH GRANT OPTION")))
+  (is (= {:type       ::mysql/privileges
+          :privileges #{"select"}
+          :object-type :database
+          :object-name "`test-data`.*"}
+         (mysql/parse-grant "GRANT SELECT, DELETE (id) ON `test-data`.* TO 'metabase'@'localhost' WITH GRANT OPTION")))
+  (is (= {:type       ::mysql/privileges
+          :privileges #{"select" "insert" "update" "delete"}
+          :object-type :table
+          :object-name "`test-data`.`foo`"}
+         (mysql/parse-grant "GRANT ALL PRIVILEGES ON `test-data`.`foo` TO 'metabase'@'localhost'")))
+  (is (= {:type       ::mysql/roles
+          :roles #{"`example_role`@`%`" "`example_role_2`@`%`"}}
+         (mysql/parse-grant "GRANT `example_role`@`%`,`example_role_2`@`%` TO 'metabase'@'localhost'")))
+  (is (nil? (mysql/parse-grant "GRANT PROXY ON 'metabase'@'localhost' TO 'metabase'@'localhost' WITH GRANT OPTION"))))
