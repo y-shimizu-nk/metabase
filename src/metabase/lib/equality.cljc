@@ -185,10 +185,8 @@
        (if (empty? matches)
          (recur (rest squinty-needle) (map rest squinty-haystack) (inc depth))
          (do
-           (log/warn (i18n/tru "Ambiguous match for {0}: got {1}" (pr-str needle) (pr-str matches))
-                     {:needle   needle
-                      :haystack (mapv first squinty-haystack)
-                      :matches  (vec matches)})
+           (when (> (count matches) 1)
+             (log/warn (i18n/tru "Ambiguous match for {0}: got {1}" (pr-str needle) (pr-str matches))))
            [(first matches) depth]))))))
 
 (defn- lowest-depth
@@ -207,8 +205,11 @@
       ;; Then for each column in Products, `visible-columns` returns two: one with `:source/card`, and one with
       ;; `:source/implicitly-joinable`. For regular queries we use the IDs to de-dupe them, but the columns from the
       ;; nested query have no `:id` or `:table-id`.
-      (log/warn  (i18n/tru "Ambiguous match: needles at {0} matched a single haystack value"
-                           (pr-str (map first at-depth)))))))
+      (do
+        (log/warn  (i18n/tru "Ambiguous match: needles at {0} matched a single haystack value"
+                             (pr-str (map first at-depth))))
+        ;; Arbitrarily returning the earlier of the two matches.
+        (ffirst at-depth)))))
 
 (defn find-closest-matches-for-refs
   "For each of `needles` (which must be a ref) find the column or ref in `haystack` that it most closely matches. This
